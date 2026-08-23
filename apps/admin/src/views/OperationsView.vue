@@ -35,10 +35,19 @@ type ReconciliationRun = {
   mismatches: number
 }
 
+type ControlPlane = {
+  authority: string
+  middleware: string
+  crm_projection: string
+  inbox_messages: number
+  pending_outbox_events: number
+}
+
 const fundings = ref<Funding[]>([])
 const complaints = ref<Complaint[]>([])
 const integrations = ref<IntegrationEvent[]>([])
 const reconciliations = ref<ReconciliationRun[]>([])
+const controlPlane = ref<ControlPlane | null>(null)
 const error = ref("")
 
 onMounted(async () => {
@@ -48,11 +57,13 @@ onMounted(async () => {
       complaints.value,
       integrations.value,
       reconciliations.value,
+      controlPlane.value,
     ] = await Promise.all([
       api<Funding[]>("/admin/fundings"),
       api<Complaint[]>("/admin/complaints"),
       api<IntegrationEvent[]>("/admin/integration-events"),
       api<ReconciliationRun[]>("/admin/reconciliation-runs"),
+      api<ControlPlane>("/admin/integration-control-plane"),
     ])
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : "Request failed"
@@ -91,6 +102,14 @@ onMounted(async () => {
         <div class="metric">
           {{ reconciliations.reduce((sum, row) => sum + row.mismatches, 0) }}
         </div>
+      </div>
+      <div class="card">
+        <div class="muted">Pending outbox</div>
+        <div class="metric">{{ controlPlane?.pending_outbox_events ?? 0 }}</div>
+      </div>
+      <div class="card">
+        <div class="muted">Verified inbox</div>
+        <div class="metric">{{ controlPlane?.inbox_messages ?? 0 }}</div>
       </div>
     </div>
 
