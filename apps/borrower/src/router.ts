@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router"
 import ApplicationView from "./views/ApplicationView.vue"
+import BankingView from "./views/BankingView.vue"
 import BusinessView from "./views/BusinessView.vue"
 import CapabilityWorkflowView from "./views/CapabilityWorkflowView.vue"
 import ConditionsView from "./views/ConditionsView.vue"
@@ -30,16 +31,7 @@ export default createRouter({
         description: "Upload workflows open only after secure storage and malware scanning are approved.",
       },
     },
-    {
-      path: "/banking",
-      component: CapabilityWorkflowView,
-      props: {
-        eyebrow: "APPLICATION · BANKING",
-        title: "Business banking",
-        description: "Connect a business account through an approved banking provider.",
-        capability: "bank.live_connection",
-      },
-    },
+    {path: "/banking", component: BankingView},
     {
       path: "/verification",
       component: CapabilityWorkflowView,
