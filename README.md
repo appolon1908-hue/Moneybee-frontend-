@@ -25,3 +25,5 @@ Shared packages own the MoneyBee design system, API client, authentication helpe
 See [docs/FRONTEND_IMPLEMENTATION_SPEC.md](docs/FRONTEND_IMPLEMENTATION_SPEC.md) and [docs/API_CONTRACT.md](docs/API_CONTRACT.md).
 
 Detailed build sequence and implementation patterns: [Frontend build blueprint](docs/FRONTEND_BUILD_BLUEPRINT.md).
+
+Mandatory launch gaps and evidence gates: [Production readiness requirements](docs/PRODUCTION_READINESS_REQUIREMENTS.md).
