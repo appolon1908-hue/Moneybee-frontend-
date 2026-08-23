@@ -10,6 +10,6 @@ All production-sensitive capabilities fail closed in `.env.example` and `package
 
 ## Lockfile gate
 
-The committed `pnpm-lock.yaml` is a bootstrap seed because this execution environment cannot resolve npm packages. CI resolves the complete graph and then proves a frozen second install. This PR must remain draft until the complete generated lock snapshot is committed and `pnpm install --frozen-lockfile` passes from a clean checkout.
+The complete resolved `pnpm-lock.yaml` is committed. CI is read-only and must start from `pnpm install --frozen-lockfile`; Docker builds must also use the frozen lockfile. A lockfile mismatch is therefore a hard failure rather than something repaired during release verification.
 
-Do not deploy this branch. Do not auto-merge.
+Do not deploy this branch. Do not auto-merge. Step 0 completion does not activate any production capability.
