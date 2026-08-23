@@ -14,6 +14,7 @@
         <RouterLink to="/sla-alerts">SLA alerts</RouterLink>
         <RouterLink to="/users">Users</RouterLink>
         <RouterLink to="/operations">Lifecycle operations</RouterLink>
+        <RouterLink to="/integration-inbox">Integration inbox</RouterLink>
         <RouterLink to="/crm">CRM & integrations</RouterLink>
         <RouterLink to="/audit">Audit</RouterLink>
         <RouterLink to="/system">System</RouterLink>
