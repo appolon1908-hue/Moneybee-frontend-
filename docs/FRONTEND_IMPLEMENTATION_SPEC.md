@@ -126,7 +126,7 @@ Implement one reusable `MoneyBeePrequalForm` component across all ten routes.
 4. Approximate monthly revenue: under $10K, $10–25K, $25–50K, $50–100K, $100–250K, $250K+.
 5. Business name, first name, last name, email, phone, ZIP, required disclosures/consents.
 
-Submit only to `POST /api/v1/public/prequalifications`.
+Submit only to `POST /api/v2/public/prequalifications`.
 
 Requirements:
 
