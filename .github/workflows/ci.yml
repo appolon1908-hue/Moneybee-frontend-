@@ -18,12 +18,13 @@ jobs:
         run: corepack enable
       - name: Install
         run: pnpm install --no-frozen-lockfile
-      - name: Emit lockfile for bootstrap
-        run: |
-          echo LOCKFILE_BASE64_BEGIN
-          base64 -w0 pnpm-lock.yaml
-          echo
-          echo LOCKFILE_BASE64_END
+      - name: Preserve bootstrap lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: pnpm-lockfile
+          path: pnpm-lock.yaml
+          if-no-files-found: error
+          retention-days: 1
       - name: Typecheck
         run: pnpm typecheck
       - name: Unit tests
