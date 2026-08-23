@@ -1,0 +1,18 @@
+{
+  "name": "moneybee-frontends",
+  "private": true,
+  "packageManager": "pnpm@10.15.0",
+  "scripts": {
+    "dev:marketing": "pnpm --filter @moneybee/marketing dev",
+    "dev:borrower": "pnpm --filter @moneybee/borrower dev",
+    "dev:lender": "pnpm --filter @moneybee/lender dev",
+    "dev:admin": "pnpm --filter @moneybee/admin dev",
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

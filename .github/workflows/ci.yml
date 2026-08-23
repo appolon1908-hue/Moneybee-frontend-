@@ -1,0 +1,24 @@
+name: frontend-ci
+
+on:
+  pull_request:
+  push:
+    branches: ["main", "planning/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: corepack enable
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: docker build --build-arg APP=marketing -t moneybee-marketing:test .
