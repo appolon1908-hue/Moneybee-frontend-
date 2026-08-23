@@ -1,6 +1,6 @@
 FROM node:22-alpine AS build
 ARG APP=marketing
-ARG VITE_API_BASE_URL=http://localhost:8000/api/v1
+ARG VITE_API_BASE_URL=http://localhost:8000/api/v2
 ARG VITE_BORROWER_URL=http://localhost:5174
 ARG VITE_LENDER_URL=http://localhost:5175
 ARG VITE_ADMIN_URL=http://localhost:5176
