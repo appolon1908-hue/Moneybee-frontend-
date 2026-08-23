@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router"
+import ApplicationView from "./views/ApplicationView.vue"
 import DashboardView from "./views/DashboardView.vue"
 import OffersView from "./views/OffersView.vue"
 
@@ -8,7 +9,7 @@ export default createRouter({
     {path: "/", redirect: "/dashboard"},
     {path: "/dashboard", component: DashboardView},
     {path: "/offers", component: OffersView},
-    {path: "/application", component: DashboardView},
+    {path: "/application", component: ApplicationView},
     {path: "/documents", component: DashboardView},
     {path: "/banking", component: DashboardView},
   ],
