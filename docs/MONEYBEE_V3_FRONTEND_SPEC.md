@@ -11,7 +11,7 @@ This document applies the V3 architecture to the dedicated frontend repository. 
 | Lender | `lenders.moneybeeloan.com` | Submissions, underwriting, conditions, offers, programs, funded files |
 | Admin | `admin.moneybeeloan.com` | Leads, operations, fraud review, matching, funding, commissions, compliance, audit |
 
-All applications call `https://api.moneybeeloan.com/api/v1`. Human authentication uses Authorization Code + PKCE against `https://auth.codestra.co/realms/codestra`.
+All applications call `https://api.moneybeeloan.com/api/v2`. Human authentication uses Authorization Code + PKCE against `https://auth.codestra.co/realms/codestra`.
 
 ## Repository boundary
 
@@ -45,7 +45,7 @@ Each section saves independently through versioned endpoints so a borrower can r
 
 ## API client rules
 
-- One base URL ending in `/api/v1`
+- One base URL ending in `/api/v2`
 - Bearer tokens supplied by the auth package
 - `X-Request-ID` on every request
 - `Idempotency-Key` for supported commands
