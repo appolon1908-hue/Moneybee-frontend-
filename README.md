@@ -15,7 +15,7 @@ Shared packages own the MoneyBee design system, API client, authentication helpe
 
 ## Canonical boundaries
 
-- API: `https://api.moneybeeloan.com/api/v1`
+- API: `https://api.moneybeeloan.com/api/v2`
 - Identity issuer: `https://auth.codestra.co/realms/codestra`
 - Portal authentication: Authorization Code + PKCE
 - All forms submit to MoneyBee FastAPI; no form posts directly to a CRM
