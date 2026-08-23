@@ -9,6 +9,7 @@
     "typecheck": "vue-tsc -b --pretty false"
   },
   "dependencies": {
+    "@moneybee/auth": "workspace:*",
     "@moneybee/api-client": "workspace:*",
     "@moneybee/ui": "workspace:*",
     "@tanstack/vue-query": "^5.85.0",

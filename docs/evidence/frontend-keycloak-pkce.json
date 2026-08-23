@@ -1,0 +1,20 @@
+{
+  "work_package": "frontend/keycloak-pkce",
+  "status": "PARTIAL",
+  "source_sha": "PENDING_PR_HEAD",
+  "migration_head": "NOT_APPLICABLE",
+  "unit_tests": "PENDING_CI",
+  "postgres_tests": "NOT_APPLICABLE",
+  "security_tests": "PENDING_CI",
+  "concurrency_tests": "NOT_APPLICABLE",
+  "openapi_status": "CLIENT_COMPATIBILITY_ONLY",
+  "rollback_documented": true,
+  "staging_verified": false,
+  "production_enabled": false,
+  "live_capabilities_enabled": [],
+  "overall_system_status": "PARTIAL",
+  "blockers": [
+    "Live browser E2E requires the reviewed staging Keycloak client and exact redirect URI allowlist",
+    "Backend auth/local-identity-tenancy PR must be tested with this PR in staging"
+  ]
+}

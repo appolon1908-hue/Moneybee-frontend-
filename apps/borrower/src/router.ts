@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router"
+import { authRoutes } from "@moneybee/auth"
 import ApplicationView from "./views/ApplicationView.vue"
 import BankingView from "./views/BankingView.vue"
 import BusinessView from "./views/BusinessView.vue"
@@ -14,6 +15,7 @@ import SupportView from "./views/SupportView.vue"
 export default createRouter({
   history: createWebHistory(),
   routes: [
+    ...authRoutes(),
     {path: "/", redirect: "/dashboard"},
     {path: "/dashboard", component: DashboardView},
     {path: "/application", component: ApplicationView},

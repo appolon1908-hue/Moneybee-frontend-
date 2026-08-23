@@ -22,3 +22,6 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: docker build --build-arg APP=marketing -t moneybee-marketing:test .
+      - run: docker build --build-arg APP=borrower -t moneybee-borrower:test .
+      - run: docker build --build-arg APP=lender -t moneybee-lender:test .
+      - run: docker build --build-arg APP=admin -t moneybee-admin:test .
