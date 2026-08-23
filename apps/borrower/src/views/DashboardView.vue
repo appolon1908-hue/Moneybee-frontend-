@@ -22,7 +22,7 @@ const query = useQuery({
       <div v-for="item in (query.data.value as any)?.requirements" :key="item.code">
         {{ item.complete ? "✓" : "○" }} {{ item.code.replaceAll("_", " ") }}
       </div>
-      <button>Continue application</button>
+      <RouterLink class="button" to="/application">Continue application</RouterLink>
     </div>
   </div>
 </template>
