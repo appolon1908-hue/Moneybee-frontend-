@@ -1,0 +1,9 @@
+lockfileVersion: '9.0'
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+# Bootstrap seed only. CI resolves the complete transitive graph, then proves a frozen
+# second install. The generated full lock snapshot must be committed before this PR
+# can be marked ready for merge.
+importers: {}

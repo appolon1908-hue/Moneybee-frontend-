@@ -1,0 +1,39 @@
+name: frontend-ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Resolve bootstrap lock
+        run: pnpm install --no-frozen-lockfile
+      - name: Prove frozen reinstall
+        run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - name: Build all frontend containers
+        run: |
+          for app in marketing borrower lender admin; do
+            docker build --build-arg APP=$app -t moneybee-$app:${{ github.sha }} .
+          done
+      - name: Guard live capabilities
+        run: |
+          grep -q '^VITE_CREDIT_LIVE_PULL=false' .env.example
+          grep -q '^VITE_LENDERS_LIVE_SUBMISSION=false' .env.example
+          grep -q '^VITE_ESIGN_LIVE_SEND=false' .env.example
+          grep -q '^VITE_FUNDING_LIVE_CONFIRMATION=false' .env.example
+          grep -q '^VITE_PAYMENTS=false' .env.example
+          grep -q '^VITE_PAYOUTS=false' .env.example
