@@ -27,3 +27,5 @@ See [docs/FRONTEND_IMPLEMENTATION_SPEC.md](docs/FRONTEND_IMPLEMENTATION_SPEC.md)
 Detailed build sequence and implementation patterns: [Frontend build blueprint](docs/FRONTEND_BUILD_BLUEPRINT.md).
 
 Mandatory launch gaps and evidence gates: [Production readiness requirements](docs/PRODUCTION_READINESS_REQUIREMENTS.md).
+
+API v2 capability and typed-client rules: [API v2 frontend contract](docs/API_V2_FRONTEND_CONTRACT.md).
