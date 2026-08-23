@@ -1,8 +1,13 @@
 import { createRouter, createWebHistory } from "vue-router"
 import ApplicationView from "./views/ApplicationView.vue"
+import BusinessView from "./views/BusinessView.vue"
+import CapabilityWorkflowView from "./views/CapabilityWorkflowView.vue"
 import ConditionsView from "./views/ConditionsView.vue"
 import DashboardView from "./views/DashboardView.vue"
+import FinancialsView from "./views/FinancialsView.vue"
 import OffersView from "./views/OffersView.vue"
+import OwnersView from "./views/OwnersView.vue"
+import ProfileView from "./views/ProfileView.vue"
 import SupportView from "./views/SupportView.vue"
 
 export default createRouter({
@@ -10,11 +15,42 @@ export default createRouter({
   routes: [
     {path: "/", redirect: "/dashboard"},
     {path: "/dashboard", component: DashboardView},
-    {path: "/offers", component: OffersView},
     {path: "/application", component: ApplicationView},
+    {path: "/business", component: BusinessView},
+    {path: "/financials", component: FinancialsView},
+    {path: "/owners", component: OwnersView},
     {path: "/conditions", component: ConditionsView},
+    {path: "/offers", component: OffersView},
+    {
+      path: "/documents",
+      component: CapabilityWorkflowView,
+      props: {
+        eyebrow: "APPLICATION · DOCUMENTS",
+        title: "Secure documents",
+        description: "Upload workflows open only after secure storage and malware scanning are approved.",
+      },
+    },
+    {
+      path: "/banking",
+      component: CapabilityWorkflowView,
+      props: {
+        eyebrow: "APPLICATION · BANKING",
+        title: "Business banking",
+        description: "Connect a business account through an approved banking provider.",
+        capability: "bank.live_connection",
+      },
+    },
+    {
+      path: "/verification",
+      component: CapabilityWorkflowView,
+      props: {
+        eyebrow: "APPLICATION · VERIFICATION",
+        title: "Business verification",
+        description: "Complete KYB verification through an approved identity provider.",
+        capability: "kyb.live_verification",
+      },
+    },
+    {path: "/profile", component: ProfileView},
     {path: "/support", component: SupportView},
-    {path: "/documents", component: DashboardView},
-    {path: "/banking", component: DashboardView},
   ],
 })
