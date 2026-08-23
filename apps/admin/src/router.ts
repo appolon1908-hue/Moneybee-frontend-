@@ -92,6 +92,15 @@ export default createRouter({
       },
     },
     {path: "/operations", component: OperationsView},
+    {
+      path: "/integration-inbox",
+      component: ResourceView,
+      props: {
+        title: "Integration inbox",
+        endpoint: "/admin/integration-inbox",
+        description: "Authenticated, deduplicated callbacks awaiting approved domain handling.",
+      },
+    },
     {path: "/crm", component: CRMView},
     {path: "/audit", component: DashboardView},
     {path: "/system", component: CapabilityView},
