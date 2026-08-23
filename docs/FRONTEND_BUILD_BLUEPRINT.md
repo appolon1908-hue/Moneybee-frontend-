@@ -152,7 +152,7 @@ The feature:
 - updates last-touch attribution on subsequent visits;
 - validates through the schema generated/aligned with OpenAPI;
 - generates one idempotency key per intended submission;
-- posts to `/api/v1/public/prequalifications`;
+- posts to `/api/v2/public/prequalifications`;
 - treats the returned state as `RECEIVED`, never approved;
 - navigates only to the backend-provided allowlisted next-action URL;
 - retains non-sensitive draft data after a recoverable network failure;
@@ -308,7 +308,7 @@ Route guards improve navigation but never replace backend authorization. On tena
 ## Runtime variables
 
 ```bash
-VITE_API_BASE_URL=http://localhost:8000/api/v1
+VITE_API_BASE_URL=http://localhost:8000/api/v2
 VITE_OIDC_AUTHORITY=https://auth.codestra.co/realms/codestra
 VITE_OIDC_CLIENT_ID=
 VITE_OIDC_AUDIENCE=
