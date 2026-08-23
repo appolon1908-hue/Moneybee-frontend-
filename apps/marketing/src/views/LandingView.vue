@@ -5,13 +5,14 @@ import { landingPages } from "../landingPages"
 
 const props = defineProps<{slug: string}>()
 const page = computed(() => landingPages[props.slug] || landingPages["business-loans"])
+const borrowerUrl = import.meta.env.VITE_BORROWER_URL || "http://localhost:5174"
 </script>
 
 <template>
   <header class="container topbar">
     <a class="brand" href="/"><span class="mark">MB</span> MoneyBeeLoans</a>
     <nav aria-label="Primary"><a href="#how">How it works</a><a href="#uses">Uses</a><a href="#faq">FAQ</a>
-      <a class="button" :href="import.meta.env.VITE_BORROWER_URL || 'http://localhost:5174'">Login</a>
+      <a class="button" :href="borrowerUrl">Login</a>
     </nav>
   </header>
   <main>
