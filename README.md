@@ -1,19 +1,52 @@
 # MoneyBee Frontend
 
-Vue 3/TypeScript frontend for **MoneyBeeLoans** — “Business funding that keeps you moving.”
+Separate Vue frontend workspace for MoneyBeeLoans.
 
-## Included baseline
-- Marketing home and application intake
-- Borrower, lender and operations routes
-- Authorization Code + PKCE via `oidc-client-ts`
-- Runtime role guards and typed/Zod-validated MoneyBee API client
-- Responsive UI, Docker/Nginx security headers and CI build/typecheck
+Applications:
 
-## Local start
+- marketing
+- borrower
+- lender
+- admin
+
+## Current status
+
+PARTIAL
+
+Step 0 provides only the frontend production foundation.
+
+Authenticated portals are intentionally NOT considered production-authenticated yet.
+
+Next PR: `frontend/keycloak-pkce`
+
+Canonical Keycloak authority: `https://auth.codestra.co/realms/codestra`
+
+## Install
+
 ```bash
-cp .env.example .env
-npm install
-npm run dev
+corepack enable
+pnpm install
 ```
 
-The browser never contains lender decision logic, provider secrets, CRM credentials or authoritative financial calculations. See `docs/PRODUCTION_READINESS.md` before launch.
+Commit `pnpm-lock.yaml`.
+
+## Development
+
+```bash
+pnpm dev:marketing
+pnpm dev:borrower
+pnpm dev:lender
+pnpm dev:admin
+```
+
+## Checks
+
+```bash
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+## Capability freeze
+
+No financial capability is activated from this repository.

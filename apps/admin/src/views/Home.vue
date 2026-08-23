@@ -1,0 +1,1 @@
+<template><main class="page"><div class="card"><h1>MoneyBee Operations</h1><p class="status">BOOTSTRAP / PARTIAL</p><p class="muted">Authentication is intentionally not faked in Step 0. This portal will become protected through Keycloak Authorization Code + PKCE in the frontend/keycloak-pkce PR.</p></div></main></template>

@@ -1,0 +1,1 @@
+<template><main class="page"><div class="card"><h1>MoneyBeeLoans</h1><p class="status">BOOTSTRAP / PARTIAL</p><p class="muted">Public marketing foundation. Authentication is not required here.</p></div></main></template>
