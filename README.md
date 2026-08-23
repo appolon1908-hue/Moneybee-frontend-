@@ -23,3 +23,5 @@ Shared packages own the MoneyBee design system, API client, authentication helpe
 - Disclosures, eligibility, matching, statuses, permissions, and offer ranking come from the backend
 
 See [docs/FRONTEND_IMPLEMENTATION_SPEC.md](docs/FRONTEND_IMPLEMENTATION_SPEC.md) and [docs/API_CONTRACT.md](docs/API_CONTRACT.md).
+
+Detailed build sequence and implementation patterns: [Frontend build blueprint](docs/FRONTEND_BUILD_BLUEPRINT.md).
