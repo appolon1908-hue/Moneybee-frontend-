@@ -20,6 +20,23 @@ type ProviderConnection = {
   status: string
 }
 
+type ReadinessReport = {
+  FINAL_STATUS: "READY" | "PARTIAL"
+  ENVIRONMENT: string
+  SOURCE_SHA: string | null
+  MIGRATION_HEAD: string | null
+  OUTBOX_STATUS: string
+  INBOX_STATUS: string
+  OUTBOX_PENDING: number
+  INBOX_PENDING: number
+  OPEN_OPERATIONAL_EXCEPTIONS: number
+  BACKUP_STATUS: string
+  RESTORE_STATUS: string
+  STAGING_STATUS: string
+  BLOCKERS: string[]
+  NEXT_SAFE_ACTION: string
+}
+
 const capabilities = useQuery({
   queryKey: ["admin-capabilities"],
   queryFn: () => api<Capability[]>("/admin/capabilities"),
@@ -27,6 +44,10 @@ const capabilities = useQuery({
 const providers = useQuery({
   queryKey: ["admin-provider-connections"],
   queryFn: () => api<ProviderConnection[]>("/admin/provider-connections"),
+})
+const readiness = useQuery({
+  queryKey: ["admin-system-readiness"],
+  queryFn: () => api<ReadinessReport>("/admin/system/readiness"),
 })
 </script>
 
@@ -39,9 +60,60 @@ const providers = useQuery({
       This view is read-only.
     </p>
 
-    <div v-if="capabilities.error.value || providers.error.value" class="card error">
+    <div
+      v-if="capabilities.error.value || providers.error.value || readiness.error.value"
+      class="card error"
+    >
       Capability information is unavailable.
     </div>
+
+    <section v-if="readiness.data.value" class="section">
+      <div class="section-heading">
+        <div>
+          <h3>Production readiness</h3>
+          <p class="muted">
+            {{ readiness.data.value.ENVIRONMENT }} · source
+            {{ readiness.data.value.SOURCE_SHA?.slice(0, 12) || "not recorded" }}
+          </p>
+        </div>
+        <span class="eyebrow">{{ readiness.data.value.FINAL_STATUS }}</span>
+      </div>
+      <div class="grid three">
+        <article class="card">
+          <strong>Integration reliability</strong>
+          <p class="muted">
+            Outbox {{ readiness.data.value.OUTBOX_STATUS }} ·
+            {{ readiness.data.value.OUTBOX_PENDING }} pending
+          </p>
+          <p class="muted">
+            Inbox {{ readiness.data.value.INBOX_STATUS }} ·
+            {{ readiness.data.value.INBOX_PENDING }} pending
+          </p>
+        </article>
+        <article class="card">
+          <strong>Recovery evidence</strong>
+          <p class="muted">Backup {{ readiness.data.value.BACKUP_STATUS }}</p>
+          <p class="muted">Restore {{ readiness.data.value.RESTORE_STATUS }}</p>
+          <p class="muted">Staging {{ readiness.data.value.STAGING_STATUS }}</p>
+        </article>
+        <article class="card">
+          <strong>Open exceptions</strong>
+          <div class="metric">{{ readiness.data.value.OPEN_OPERATIONAL_EXCEPTIONS }}</div>
+        </article>
+      </div>
+      <div class="card">
+        <strong>Next safe action</strong>
+        <p>{{ readiness.data.value.NEXT_SAFE_ACTION }}</p>
+        <details>
+          <summary>{{ readiness.data.value.BLOCKERS.length }} blockers</summary>
+          <ul>
+            <li v-for="blocker in readiness.data.value.BLOCKERS" :key="blocker">
+              {{ blocker }}
+            </li>
+          </ul>
+        </details>
+      </div>
+    </section>
 
     <section class="section">
       <h3>Capability flags</h3>
