@@ -101,6 +101,15 @@ export default createRouter({
         description: "Authenticated, deduplicated callbacks awaiting approved domain handling.",
       },
     },
+    {
+      path: "/operational-exceptions",
+      component: ResourceView,
+      props: {
+        title: "Operational exceptions",
+        endpoint: "/admin/operational-exceptions?status=OPEN",
+        description: "Explicit recovery work created when automated processing exhausts its safe retry budget.",
+      },
+    },
     {path: "/crm", component: CRMView},
     {path: "/audit", component: DashboardView},
     {path: "/system", component: CapabilityView},
