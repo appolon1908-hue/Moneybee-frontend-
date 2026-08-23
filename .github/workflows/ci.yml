@@ -3,6 +3,8 @@ on:
   pull_request:
   push:
     branches: [main]
+permissions:
+  contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -19,6 +21,12 @@ jobs:
         run: pnpm install --no-frozen-lockfile
       - name: Prove frozen reinstall
         run: pnpm install --frozen-lockfile
+      - name: Preserve resolved lockfile evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: resolved-pnpm-lock
+          path: pnpm-lock.yaml
+          if-no-files-found: error
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
