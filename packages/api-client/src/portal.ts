@@ -30,7 +30,7 @@ export interface NavigationItem {
 export interface AuthContext {
   user_id: string;
   subject: string;
-  active_organization_id: string | null;
+  active_organization_id: string;
   organizations: PortalOrganization[];
   organization_ids: string[];
   roles: string[];
@@ -126,7 +126,7 @@ export interface PortalConversation {
   status: string;
   created_by_subject: string;
   participant_subjects: string[];
-  last_message_at: string | null;
+  last_message_at: string;
   metadata_payload: Record<string, unknown>;
   created_at: string;
   updated_at: string;
@@ -214,18 +214,17 @@ export async function getAuthContext(
     "/auth/context",
     withOrganization(organizationId),
   );
-  const navigation = await getPortalNavigation(
-    wire.active_organization_id,
-    wire.portal,
-  );
+  const activeOrganizationId = wire.active_organization_id || "";
+  const navigation = await getPortalNavigation(activeOrganizationId, wire.portal);
   const borrowerId = wire.membership_types.includes("BORROWER")
-    ? wire.active_organization_id
+    ? activeOrganizationId || null
     : null;
   const lenderId = wire.membership_types.includes("LENDER")
-    ? wire.active_organization_id
+    ? activeOrganizationId || null
     : null;
   return {
     ...wire,
+    active_organization_id: activeOrganizationId,
     organization_ids: wire.organizations.map((item) => item.id),
     borrower_id: borrowerId,
     lender_id: lenderId,
