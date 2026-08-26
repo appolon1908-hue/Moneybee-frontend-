@@ -11,29 +11,62 @@ export type PortalTaskStatus =
 export type PortalTaskObservedStatus = PortalTaskStatus | (string & {});
 export type PortalTaskPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
 
+export interface PortalOrganization {
+  id: string;
+  name: string;
+  organization_type: string;
+}
+
 export interface NavigationItem {
   key: string;
   label: string;
   href: string;
+  path: string;
   portal: "borrower" | "lender" | "admin" | "shared";
+  group: string;
+  required_permission: string | null;
 }
 
 export interface AuthContext {
   user_id: string;
   subject: string;
-  active_organization_id: string;
+  active_organization_id: string | null;
+  organizations: PortalOrganization[];
   organization_ids: string[];
   roles: string[];
   permissions: string[];
   membership_types: string[];
   borrower_id: string | null;
   lender_id: string | null;
+  portal: "BORROWER" | "LENDER" | "ADMIN" | "AFFILIATE" | "UNKNOWN";
+  capabilities: Record<string, boolean>;
   navigation: NavigationItem[];
+}
+
+interface AuthContextWire {
+  user_id: string;
+  subject: string;
+  active_organization_id: string | null;
+  organizations: PortalOrganization[];
+  roles: string[];
+  permissions: string[];
+  membership_types: string[];
+  portal: AuthContext["portal"];
+  capabilities: Record<string, boolean>;
+}
+
+interface NavigationItemWire {
+  key: string;
+  label: string;
+  path: string;
+  group: string;
+  required_permission: string | null;
 }
 
 export interface PortalTask {
   id: string;
   tenant_id: string;
+  organization_id?: string | null;
   application_id: string | null;
   task_type: string;
   title: string;
@@ -73,6 +106,7 @@ export interface PortalTaskUpdate {
 export interface PortalNotification {
   id: string;
   tenant_id: string;
+  application_id?: string | null;
   recipient_subject: string;
   notification_type: string;
   title: string;
@@ -88,10 +122,11 @@ export interface PortalConversation {
   tenant_id: string;
   application_id: string | null;
   topic: string;
+  subject: string;
   status: string;
   created_by_subject: string;
   participant_subjects: string[];
-  last_message_at: string;
+  last_message_at: string | null;
   metadata_payload: Record<string, unknown>;
   created_at: string;
   updated_at: string;
@@ -131,7 +166,7 @@ export interface PortalQuery {
 }
 
 function withOrganization(
-  organizationId?: string,
+  organizationId?: string | null,
   options: ApiOptions = {},
 ): ApiOptions {
   if (!organizationId) return options;
@@ -154,17 +189,48 @@ function queryString<T extends object>(values: T): string {
   return encoded ? `?${encoded}` : "";
 }
 
-export function getAuthContext(organizationId?: string): Promise<AuthContext> {
-  return api<AuthContext>("/auth/context", withOrganization(organizationId));
-}
-
-export function getPortalNavigation(
-  organizationId?: string,
+export async function getPortalNavigation(
+  organizationId?: string | null,
+  portal: AuthContext["portal"] = "UNKNOWN",
 ): Promise<NavigationItem[]> {
-  return api<NavigationItem[]>(
+  const rows = await api<NavigationItemWire[]>(
     "/portal/navigation",
     withOrganization(organizationId),
   );
+  const portalName = portal.toLowerCase() as NavigationItem["portal"];
+  return rows.map((row) => ({
+    ...row,
+    href: row.path,
+    portal: ["borrower", "lender", "admin"].includes(portalName)
+      ? portalName
+      : "shared",
+  }));
+}
+
+export async function getAuthContext(
+  organizationId?: string | null,
+): Promise<AuthContext> {
+  const wire = await api<AuthContextWire>(
+    "/auth/context",
+    withOrganization(organizationId),
+  );
+  const navigation = await getPortalNavigation(
+    wire.active_organization_id,
+    wire.portal,
+  );
+  const borrowerId = wire.membership_types.includes("BORROWER")
+    ? wire.active_organization_id
+    : null;
+  const lenderId = wire.membership_types.includes("LENDER")
+    ? wire.active_organization_id
+    : null;
+  return {
+    ...wire,
+    organization_ids: wire.organizations.map((item) => item.id),
+    borrower_id: borrowerId,
+    lender_id: lenderId,
+    navigation,
+  };
 }
 
 export function listPortalTasks(

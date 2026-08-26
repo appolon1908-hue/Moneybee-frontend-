@@ -1,3 +1,10 @@
+import {
+  createBorrowerConversation,
+  createBorrowerMessage,
+  createBorrowerUploadSession,
+  listBorrowerMessages,
+  updateBorrowerTask,
+} from "./borrower";
 import { getAuthContext, type AuthContext, type PortalTask } from "./portal";
 import {
   getLenderPortfolio,
@@ -39,6 +46,68 @@ export interface LenderWorkspace {
 
 export const portalApi = {
   context: getAuthContext,
+
+  messages(conversationId: string, organizationId?: string) {
+    return listBorrowerMessages(conversationId, organizationId);
+  },
+
+  patchTask(
+    taskId: string,
+    payload: { status: string; version?: number },
+    organizationId?: string,
+  ) {
+    return updateBorrowerTask(taskId, payload.status, organizationId);
+  },
+
+  createConversation(
+    payload: {
+      subject: string;
+      application_id?: string | null;
+      first_message?: string | null;
+    },
+    organizationId?: string,
+  ) {
+    return createBorrowerConversation(
+      {
+        topic: payload.subject,
+        application_id: payload.application_id || null,
+        body: payload.first_message || "Support request opened.",
+      },
+      organizationId,
+    );
+  },
+
+  createMessage(
+    conversationId: string,
+    payload: { body: string },
+    organizationId?: string,
+  ) {
+    return createBorrowerMessage(conversationId, payload, organizationId);
+  },
+
+  createUploadSession(
+    applicationId: string,
+    payload: {
+      original_file_name: string;
+      mime_type: string;
+      size_bytes: number;
+      sha256?: string | null;
+      document_type?: string;
+    },
+    organizationId?: string,
+  ) {
+    return createBorrowerUploadSession(
+      applicationId,
+      {
+        document_type: payload.document_type || "OTHER",
+        original_file_name: payload.original_file_name,
+        mime_type: payload.mime_type,
+        size_bytes: payload.size_bytes,
+        sha256: payload.sha256,
+      },
+      organizationId,
+    );
+  },
 };
 
 export const lenderPortalApi = {
