@@ -1,0 +1,66 @@
+services:
+  marketing:
+    image: ${MONEYBEE_MARKETING_IMAGE:?MONEYBEE_MARKETING_IMAGE must be pinned by digest}
+    restart: unless-stopped
+    init: true
+    networks: [edge]
+    expose: ["8080"]
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=32m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    pids_limit: 128
+    mem_limit: 256m
+    healthcheck: &frontend_health
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  borrower:
+    image: ${MONEYBEE_BORROWER_IMAGE:?MONEYBEE_BORROWER_IMAGE must be pinned by digest}
+    restart: unless-stopped
+    init: true
+    networks: [edge]
+    expose: ["8080"]
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=32m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    pids_limit: 128
+    mem_limit: 256m
+    healthcheck: *frontend_health
+
+  lender:
+    image: ${MONEYBEE_LENDER_IMAGE:?MONEYBEE_LENDER_IMAGE must be pinned by digest}
+    restart: unless-stopped
+    init: true
+    networks: [edge]
+    expose: ["8080"]
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=32m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    pids_limit: 128
+    mem_limit: 256m
+    healthcheck: *frontend_health
+
+  admin:
+    image: ${MONEYBEE_ADMIN_IMAGE:?MONEYBEE_ADMIN_IMAGE must be pinned by digest}
+    restart: unless-stopped
+    init: true
+    networks: [edge]
+    expose: ["8080"]
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=32m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    pids_limit: 128
+    mem_limit: 256m
+    healthcheck: *frontend_health
+
+networks:
+  edge:
+    name: ${MONEYBEE_EDGE_NETWORK:?verified edge network name required}
+    external: true
