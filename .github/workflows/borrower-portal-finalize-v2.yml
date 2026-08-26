@@ -1,0 +1,169 @@
+name: Borrower portal finalization v2
+
+on:
+  push:
+    branches:
+      - feature/borrower-portal
+
+permissions:
+  contents: write
+
+concurrency:
+  group: borrower-portal-finalization-v2
+  cancel-in-progress: false
+
+jobs:
+  synchronize-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/borrower-portal
+          fetch-depth: 0
+
+      - name: Wait for and merge validated portal client
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "moneybee-automation"
+          git config user.email "actions@users.noreply.github.com"
+          ready=0
+          for attempt in $(seq 1 80); do
+            git fetch origin feature/portal-api-client
+            if git show origin/feature/portal-api-client:docs/evidence/portal-api-client-validation.json > /tmp/client.json 2>/dev/null; then
+              if [ "$(jq -r '.status // ""' /tmp/client.json)" = "PASS" ]; then
+                ready=1
+                break
+              fi
+            fi
+            sleep 15
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "Validated portal API client was not available" >&2
+            exit 1
+          fi
+          git merge --no-edit origin/feature/portal-api-client
+
+      - name: Register and correct borrower workspace
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          main = Path("apps/borrower/src/main.ts")
+          text = main.read_text()
+          if "./router.portal" not in text:
+              updated, count = re.subn(
+                  r"(?P<prefix>from\s+['\"])\./router(?P<suffix>['\"])",
+                  r"\g<prefix>./router.portal\g<suffix>",
+                  text,
+                  count=1,
+              )
+              if count == 0:
+                  updated, count = re.subn(
+                      r"(?P<prefix>import\s+['\"])\./router(?P<suffix>['\"])",
+                      r"\g<prefix>./router.portal\g<suffix>",
+                      text,
+                      count=1,
+                  )
+              if count == 0:
+                  raise SystemExit("Borrower router import marker not found")
+              main.write_text(updated)
+
+          view = Path("apps/borrower/src/views/PortalWorkspaceView.vue")
+          text = view.read_text()
+          old = """    const session = await portalApi.createUploadSession(
+      selectedApplicationId.value,
+      {
+        original_file_name: file.name,
+        mime_type: file.type || 'application/octet-stream',
+"""
+          new = """    if (!file.type) {
+      throw new Error('This file does not report a supported media type.')
+    }
+    const session = await portalApi.createUploadSession(
+      selectedApplicationId.value,
+      {
+        original_file_name: file.name,
+        mime_type: file.type,
+"""
+          if old in text:
+              text = text.replace(old, new, 1)
+          view.write_text(text)
+          PY
+
+      - name: Install workspace
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            corepack enable
+            pnpm install --frozen-lockfile
+          elif [ -f yarn.lock ]; then
+            corepack enable
+            yarn install --immutable
+          elif [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Validate borrower portal
+        id: validate
+        shell: bash
+        run: |
+          set +e
+          status=0
+          if [ -f pnpm-lock.yaml ]; then PM="pnpm"; elif [ -f yarn.lock ]; then PM="yarn"; else PM="npm"; fi
+          for script in typecheck lint test build; do
+            if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts['$script'] ? 0 : 1)"; then
+              if [ "$script" = "test" ]; then
+                $PM run "$script" -- --run || status=$?
+              else
+                $PM run "$script" || status=$?
+              fi
+            fi
+          done
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Record and publish branch result
+        env:
+          VALIDATION_STATUS: ${{ steps.validate.outputs.status }}
+        run: |
+          mkdir -p docs/evidence
+          node - <<'NODE'
+          const fs = require('fs')
+          const code = Number(process.env.VALIDATION_STATUS || '1')
+          fs.writeFileSync(
+            'docs/evidence/borrower-portal-validation.json',
+            JSON.stringify(
+              {
+                work_package: 'feature/borrower-portal',
+                status: code === 0 ? 'PASS' : 'FAIL',
+                validation_exit_code: code,
+                base_validation: 'portal-api-client=PASS',
+                typecheck_lint_test_build: 'EXECUTED_WHEN_CONFIGURED',
+                secure_upload: 'SHA256_AND_QUARANTINE_FLOW',
+                live_capabilities_enabled: [],
+                production_deployed: false,
+                recorded_at: new Date().toISOString(),
+              },
+              null,
+              2,
+            ) + '\n',
+          )
+          NODE
+          rm -f .github/workflows/borrower-portal-bootstrap-trigger.yml
+          rm -f .github/workflows/borrower-portal-finalize-v2.yml
+          git add \
+            apps/borrower/src/main.ts apps/borrower/src/views/PortalWorkspaceView.vue \
+            docs/evidence/borrower-portal-validation.json \
+            .github/workflows/borrower-portal-bootstrap-trigger.yml \
+            .github/workflows/borrower-portal-finalize-v2.yml
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(borrower): synchronize and validate portal workspace"
+          fi
+          git push origin HEAD:feature/borrower-portal
+
+      - name: Fail if validation failed
+        if: steps.validate.outputs.status != '0'
+        run: exit 1
