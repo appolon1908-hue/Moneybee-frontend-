@@ -27,7 +27,9 @@ export interface SearchResult {
 }
 
 export const adminPortalApi = {
-  workspace: getAdminOperationsWorkspace,
+  workspace(organizationId?: string | null) {
+    return getAdminOperationsWorkspace(organizationId || undefined);
+  },
 
   async workQueue(query: AdminTaskQuery, organizationId?: string) {
     return listAdminTasks(query, organizationId);
