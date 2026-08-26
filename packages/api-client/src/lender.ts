@@ -12,7 +12,7 @@ export interface LenderSubmissionSummary {
   created_at: string;
 }
 
-export interface LenderWorkspace {
+export interface LenderWorkspaceResponse {
   summary: {
     active_programs: number;
     submission_count: number;
@@ -90,12 +90,13 @@ export interface LenderPortfolio {
     accepted_or_funded_amount: string;
   };
   positions: Array<Record<string, unknown>>;
+  submission_status_counts?: Record<string, number>;
 }
 
 export function getLenderWorkspace(
   organizationId?: string,
-): Promise<LenderWorkspace> {
-  return api<LenderWorkspace>(
+): Promise<LenderWorkspaceResponse> {
+  return api<LenderWorkspaceResponse>(
     "/lender/workspace",
     withOrganization(organizationId),
   );
