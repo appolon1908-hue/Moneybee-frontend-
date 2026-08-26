@@ -126,7 +126,7 @@ export interface PortalConversation {
   status: string;
   created_by_subject: string;
   participant_subjects: string[];
-  last_message_at: string;
+  last_message_at: string | null;
   metadata_payload: Record<string, unknown>;
   created_at: string;
   updated_at: string;
