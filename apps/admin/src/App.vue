@@ -4,6 +4,7 @@
       <div class="brand"><span class="mark">MB</span> Control Center</div>
       <nav>
         <RouterLink to="/dashboard">Dashboard</RouterLink>
+        <RouterLink to="/operations-portal">Operations portal</RouterLink>
         <RouterLink to="/leads">Leads</RouterLink>
         <RouterLink to="/applications">Applications</RouterLink>
         <RouterLink to="/lenders">Lender programs</RouterLink>
@@ -14,9 +15,11 @@
         <RouterLink to="/sla-alerts">SLA alerts</RouterLink>
         <RouterLink to="/users">Users</RouterLink>
         <RouterLink to="/operations">Lifecycle operations</RouterLink>
+        <RouterLink to="/public-intakes">Public intakes</RouterLink>
+        <RouterLink to="/crm-deliveries">CRM deliveries</RouterLink>
         <RouterLink to="/integration-inbox">Integration inbox</RouterLink>
         <RouterLink to="/operational-exceptions">Operational exceptions</RouterLink>
-        <RouterLink to="/crm">CRM & integrations</RouterLink>
+        <RouterLink to="/crm">CRM &amp; integrations</RouterLink>
         <RouterLink to="/audit">Audit</RouterLink>
         <RouterLink to="/system">System</RouterLink>
       </nav>

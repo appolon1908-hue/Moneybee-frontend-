@@ -85,6 +85,62 @@ export interface WebhookReceipt {
   payload?: unknown;
 }
 
+export interface PublicIntakeSummary {
+  id: string;
+  reference: string;
+  intake_type: string;
+  status: string;
+  business_name: string | null;
+  contact_name: string;
+  email: string;
+  phone: string | null;
+  subject: string | null;
+  attribution: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface PublicIntakeDetail extends PublicIntakeSummary {
+  contact: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string | null;
+  };
+  message: string | null;
+  details: Record<string, unknown>;
+  source_evidence: Record<string, unknown>;
+  consents: Array<{
+    id: string;
+    type: string;
+    document_version: string;
+    document_hash: string | null;
+    accepted: boolean;
+    evidence: Record<string, unknown>;
+  }>;
+  updated_at: string;
+}
+
+export interface CrmDeliverySummary {
+  id: string;
+  event_type: string;
+  aggregate_type: string;
+  aggregate_id: string;
+  status: string;
+  attempt_count: number;
+  provider: string | null;
+  destination: string | null;
+  last_http_status: number | null;
+  last_error_code: string | null;
+  last_error: string | null;
+  next_attempt_at: string | null;
+  delivered_at: string | null;
+  created_at: string;
+  updated_at: string;
+  reference: string | null;
+  intake_type: string | null;
+  moneybee_intake_id: string | null;
+}
+
 export function getAdminOperationsWorkspace(
   organizationId?: string,
 ): Promise<AdminOperationsWorkspace> {
@@ -229,6 +285,60 @@ export function requeueWebhookReceipt(
     withOrganization(organizationId, {
       method: "POST",
       idempotencyKey,
+    }),
+  );
+}
+
+export function listPublicIntakes(
+  query: { intake_type?: string; limit?: number } = {},
+  organizationId?: string,
+): Promise<PublicIntakeSummary[]> {
+  return api<PublicIntakeSummary[]>(
+    `/admin/public-intakes${queryString(query)}`,
+    withOrganization(organizationId),
+  );
+}
+
+export function getPublicIntake(
+  intakeId: string,
+  organizationId?: string,
+): Promise<PublicIntakeDetail> {
+  return api<PublicIntakeDetail>(
+    `/admin/public-intakes/${encodeURIComponent(intakeId)}`,
+    withOrganization(organizationId),
+  );
+}
+
+export function listCrmDeliveries(
+  query: { status?: string; limit?: number } = {},
+  organizationId?: string,
+): Promise<CrmDeliverySummary[]> {
+  return api<CrmDeliverySummary[]>(
+    `/admin/crm-deliveries${queryString(query)}`,
+    withOrganization(organizationId),
+  );
+}
+
+export function getCrmDelivery(
+  deliveryId: string,
+  organizationId?: string,
+): Promise<CrmDeliverySummary> {
+  return api<CrmDeliverySummary>(
+    `/admin/crm-deliveries/${encodeURIComponent(deliveryId)}`,
+    withOrganization(organizationId),
+  );
+}
+
+export function requeueCrmDelivery(
+  deliveryId: string,
+  reason: string,
+  organizationId?: string,
+): Promise<CrmDeliverySummary> {
+  return api<CrmDeliverySummary>(
+    `/admin/crm-deliveries/${encodeURIComponent(deliveryId)}/requeue`,
+    withOrganization(organizationId, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
     }),
   );
 }

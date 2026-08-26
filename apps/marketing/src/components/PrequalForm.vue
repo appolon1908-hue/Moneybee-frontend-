@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from "vue"
-import { api } from "@moneybee/api-client"
+import { submitPrequalification } from "@moneybee/api-client"
+import { PUBLIC_CONSENT_HASH, PUBLIC_CONSENT_TEXT, PUBLIC_CONSENT_VERSION } from "../publicFormPayloads"
 
 const props = defineProps<{landingPage: string}>()
 const step = ref(1)
@@ -28,32 +29,29 @@ async function submit() {
   busy.value = true
   error.value = ""
   try {
-    accepted.value = await api("/public/prequalifications", {
-      method: "POST",
-      idempotencyKey,
-      body: JSON.stringify({
-        ...form,
-        currency: "USD",
-        consents: [{
-          type: "ELECTRONIC_COMMUNICATIONS",
-          document_version: "2026-08-23",
-          accepted: form.consent,
-        }],
-        marketing: {
-          landing_page: props.landingPage,
-          original_referrer: document.referrer || null,
-          referrer: document.referrer || null,
-          utm_source: params.get("utm_source"),
-          utm_medium: params.get("utm_medium"),
-          utm_campaign: params.get("utm_campaign"),
-          utm_content: params.get("utm_content"),
-          utm_term: params.get("utm_term"),
-          gclid: params.get("gclid"),
-          fbclid: params.get("fbclid"),
-          affiliate: params.get("affiliate"),
-        },
-      }),
-    })
+    accepted.value = await submitPrequalification({
+      ...form,
+      currency: "USD",
+      consents: [{
+        type: "ELECTRONIC_COMMUNICATIONS",
+        document_version: PUBLIC_CONSENT_VERSION,
+        document_hash: PUBLIC_CONSENT_HASH,
+        accepted: form.consent,
+      }],
+      marketing: {
+        landing_page: props.landingPage,
+        original_referrer: document.referrer || null,
+        referrer: document.referrer || null,
+        utm_source: params.get("utm_source"),
+        utm_medium: params.get("utm_medium"),
+        utm_campaign: params.get("utm_campaign"),
+        utm_content: params.get("utm_content"),
+        utm_term: params.get("utm_term"),
+        gclid: params.get("gclid"),
+        fbclid: params.get("fbclid"),
+        affiliate: params.get("affiliate"),
+      },
+    }, idempotencyKey)
   } catch (value) {
     error.value = value instanceof Error ? value.message : "Unable to submit right now."
   } finally {
@@ -105,7 +103,7 @@ async function submit() {
         </div>
         <label style="display:flex;grid-template-columns:auto 1fr;align-items:start">
           <input v-model="form.consent" type="checkbox" style="width:auto" required />
-          I agree to the displayed electronic communications and application consent.
+          {{ PUBLIC_CONSENT_TEXT }}
         </label>
       </div>
       <p v-if="error" class="error" role="alert">{{ error }}</p>

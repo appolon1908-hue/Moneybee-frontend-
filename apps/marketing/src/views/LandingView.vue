@@ -5,14 +5,19 @@ import { landingPages } from "../landingPages"
 
 const props = defineProps<{slug: string}>()
 const page = computed(() => landingPages[props.slug] || landingPages["business-loans"])
-const borrowerUrl = import.meta.env.VITE_BORROWER_URL || "http://localhost:5174"
+const borrowerUrl = String(import.meta.env.VITE_BORROWER_URL || "http://localhost:5174").replace(/\/$/, "")
+const emailLoginUrl = `${borrowerUrl}/auth/login`
+const googleLoginUrl = `${borrowerUrl}/auth/login?provider=google`
 </script>
 
 <template>
   <header class="container topbar">
     <a class="brand" href="/"><span class="mark">MB</span> MoneyBeeLoans</a>
-    <nav aria-label="Primary"><a href="#how">How it works</a><a href="#uses">Uses</a><a href="#faq">FAQ</a>
-      <a class="button" :href="borrowerUrl">Login</a>
+    <nav aria-label="Primary">
+      <a href="/how-it-works">How it works</a><a href="#uses">Uses</a><a href="/faq">FAQ</a>
+      <a href="/for-lenders">For lenders</a>
+      <a :href="googleLoginUrl">Google sign in</a>
+      <a class="button" :href="emailLoginUrl">Email sign in</a>
     </nav>
   </header>
   <main>
@@ -23,7 +28,7 @@ const borrowerUrl = import.meta.env.VITE_BORROWER_URL || "http://localhost:5174"
         <p class="lede">{{ page.description }}</p>
         <p class="muted">Secure application · Multiple financing options · Human funding specialists</p>
       </div>
-      <PrequalForm :landing-page="slug" />
+      <PrequalForm :landing-page="props.slug" />
     </section>
     <section id="how" class="section" style="background:white">
       <div class="container">
@@ -43,6 +48,11 @@ const borrowerUrl = import.meta.env.VITE_BORROWER_URL || "http://localhost:5174"
     <section id="faq" class="container section">
       <h2>Important information</h2>
       <p class="lede">Submitting a request does not guarantee approval or funding. Products, terms and disclosures depend on eligibility, provider and jurisdiction.</p>
+      <div class="grid three">
+        <a class="card" href="/eligibility"><strong>Eligibility</strong><p class="muted">Understand common review factors.</p></a>
+        <a class="card" href="/required-documents"><strong>Required documents</strong><p class="muted">Prepare common business records.</p></a>
+        <a class="card" href="/contact"><strong>Contact MoneyBee</strong><p class="muted">Send a secure request.</p></a>
+      </div>
     </section>
   </main>
 </template>
