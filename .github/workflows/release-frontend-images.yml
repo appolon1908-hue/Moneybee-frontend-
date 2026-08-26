@@ -1,0 +1,160 @@
+name: release-frontend-images
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact protected release/staging commit SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: moneybee-frontend-staging-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    environment: staging-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [marketing, borrower, lender, admin]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+      - name: Verify protected source and digest-pinned base images
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          NODE_BASE_IMAGE: ${{ vars.NODE_BASE_IMAGE }}
+          NGINX_BASE_IMAGE: ${{ vars.NGINX_BASE_IMAGE }}
+          GOOGLE_LOGIN_ENABLED: ${{ vars.VITE_GOOGLE_LOGIN_ENABLED }}
+          GOOGLE_IDP_ALIAS: ${{ vars.VITE_GOOGLE_IDP_ALIAS }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/release/staging"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git fetch origin release/staging:refs/remotes/origin/release/staging
+          test "$SOURCE_SHA" = "$(git rev-parse refs/remotes/origin/release/staging)"
+          [[ "$NODE_BASE_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]]
+          [[ "$NGINX_BASE_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]]
+          [[ "$GOOGLE_LOGIN_ENABLED" =~ ^(true|false)$ ]]
+          if [[ "$GOOGLE_LOGIN_ENABLED" == true ]]; then
+            test -n "$GOOGLE_IDP_ALIAS"
+          fi
+      - name: Resolve portal client ID
+        id: client
+        env:
+          APP: ${{ matrix.app }}
+          MARKETING: ${{ vars.MARKETING_OIDC_CLIENT_ID }}
+          BORROWER: ${{ vars.BORROWER_OIDC_CLIENT_ID }}
+          LENDER: ${{ vars.LENDER_OIDC_CLIENT_ID }}
+          ADMIN: ${{ vars.ADMIN_OIDC_CLIENT_ID }}
+        run: |
+          case "$APP" in
+            marketing) value="$MARKETING" ;;
+            borrower) value="$BORROWER" ;;
+            lender) value="$LENDER" ;;
+            admin) value="$ADMIN" ;;
+          esac
+          if [[ "$APP" != marketing && -z "$value" ]]; then
+            echo "Missing OIDC client ID for $APP" >&2
+            exit 1
+          fi
+          echo "value=$value" >> "$GITHUB_OUTPUT"
+      - id: build_date
+        name: Record build timestamp
+        run: echo "value=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+        with:
+          images: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}
+          tags: type=sha,format=long,prefix=sha-
+      - id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            APP=${{ matrix.app }}
+            NODE_BASE_IMAGE=${{ vars.NODE_BASE_IMAGE }}
+            NGINX_BASE_IMAGE=${{ vars.NGINX_BASE_IMAGE }}
+            SOURCE_SHA=${{ inputs.source_sha }}
+            BUILD_DATE=${{ steps.build_date.outputs.value }}
+            VITE_API_BASE_URL=https://api-staging.moneybeeloan.com/api/v2
+            VITE_BORROWER_URL=https://app-staging.moneybeeloan.com
+            VITE_LENDER_URL=https://lenders-staging.moneybeeloan.com
+            VITE_ADMIN_URL=https://admin-staging.moneybeeloan.com
+            VITE_OIDC_AUTHORITY=https://auth.codestra.co/realms/codestra
+            VITE_OIDC_CLIENT_ID=${{ steps.client.outputs.value }}
+            VITE_OIDC_AUDIENCE=moneybee-api
+            VITE_GOOGLE_LOGIN_ENABLED=${{ vars.VITE_GOOGLE_LOGIN_ENABLED }}
+            VITE_GOOGLE_IDP_ALIAS=${{ vars.VITE_GOOGLE_IDP_ALIAS }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=frontend-${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=frontend-${{ matrix.app }}
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}@${{ steps.build.outputs.digest }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6
+      - name: Sign immutable image digest with GitHub OIDC
+        env:
+          IMAGE_DIGEST: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}@${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "$IMAGE_DIGEST"
+      - name: Verify keyless signature identity
+        env:
+          IMAGE_DIGEST: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}@${{ steps.build.outputs.digest }}
+        run: >-
+          cosign verify "$IMAGE_DIGEST"
+          --certificate-identity "https://github.com/appolon1908-hue/Moneybee-frontend-/.github/workflows/release-frontend-images.yml@refs/heads/release/staging"
+          --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+          --output-json > /tmp/cosign-verification.json
+      - name: Record immutable release evidence
+        env:
+          IMAGE: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          mkdir -p evidence
+          cp /tmp/cosign-verification.json evidence/cosign-verification.json
+          python - <<'PY'
+          import json, os, pathlib
+          pathlib.Path('evidence/release.json').write_text(json.dumps({
+              'image': os.environ['IMAGE'],
+              'digest': os.environ['DIGEST'],
+              'source_sha': os.environ['SOURCE_SHA'],
+              'workflow_run': os.environ['GITHUB_RUN_ID'],
+          }, indent=2) + '\n')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: frontend-${{ matrix.app }}-release-evidence
+          path: evidence
+          if-no-files-found: error
+          retention-days: 30
