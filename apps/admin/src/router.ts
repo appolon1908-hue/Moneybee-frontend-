@@ -13,6 +13,12 @@ export default createRouter({
     {path: "/", redirect: "/dashboard"},
     {path: "/dashboard", component: DashboardView},
     {
+      path: "/operations-portal",
+      name: "admin-operations-portal",
+      component: () => import("./views/OperationsPortalView.vue"),
+      meta: { requiresAuth: true, title: "MoneyBee operations portal" },
+    },
+    {
       path: "/leads",
       component: ResourceView,
       props: {

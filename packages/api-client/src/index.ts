@@ -1,3 +1,7 @@
 export * from "./core"
+export * from "./portal"
+export * from "./borrower"
+export * from "./lender"
+export * from "./admin"
 export * from "./banking"
 export * from "./plaid"

@@ -18,6 +18,13 @@ export default createRouter({
     ...authRoutes(),
     {path: "/", redirect: "/dashboard"},
     {path: "/dashboard", component: DashboardView},
+
+    {
+      path: "/workspace",
+      name: "borrower-portal-workspace",
+      component: () => import("./views/PortalWorkspaceView.vue"),
+      meta: { requiresAuth: true, title: "Your MoneyBee workspace" },
+    },
     {path: "/application", component: ApplicationView},
     {path: "/business", component: BusinessView},
     {path: "/financials", component: FinancialsView},
