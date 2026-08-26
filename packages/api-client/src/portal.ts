@@ -142,9 +142,9 @@ function withOrganization(
   };
 }
 
-function queryString(values: Record<string, unknown>): string {
+function queryString<T extends object>(values: T): string {
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(values)) {
+  for (const [key, value] of Object.entries(values as Record<string, unknown>)) {
     if (value === undefined || value === null || value === "") continue;
     params.set(key, String(value));
   }
