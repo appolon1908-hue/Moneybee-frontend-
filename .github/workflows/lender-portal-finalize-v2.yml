@@ -1,0 +1,176 @@
+name: Lender portal finalization v2
+
+on:
+  push:
+    branches:
+      - feature/lender-portal
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lender-portal-finalization-v2
+  cancel-in-progress: false
+
+jobs:
+  synchronize-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/lender-portal
+          fetch-depth: 0
+
+      - name: Wait for and merge validated borrower portal
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "moneybee-automation"
+          git config user.email "actions@users.noreply.github.com"
+          ready=0
+          for attempt in $(seq 1 80); do
+            git fetch origin feature/borrower-portal
+            if git show origin/feature/borrower-portal:docs/evidence/borrower-portal-validation.json > /tmp/borrower.json 2>/dev/null; then
+              if [ "$(jq -r '.status // ""' /tmp/borrower.json)" = "PASS" ]; then
+                ready=1
+                break
+              fi
+            fi
+            sleep 15
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "Validated borrower portal was not available" >&2
+            exit 1
+          fi
+          git merge --no-edit origin/feature/borrower-portal
+
+      - name: Register and correct lender workspace
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          main = Path("apps/lender/src/main.ts")
+          text = main.read_text()
+          if "./router.portal" not in text:
+              updated, count = re.subn(
+                  r"(?P<prefix>from\s+['\"])\./router(?P<suffix>['\"])",
+                  r"\g<prefix>./router.portal\g<suffix>",
+                  text,
+                  count=1,
+              )
+              if count == 0:
+                  updated, count = re.subn(
+                      r"(?P<prefix>import\s+['\"])\./router(?P<suffix>['\"])",
+                      r"\g<prefix>./router.portal\g<suffix>",
+                      text,
+                      count=1,
+                  )
+              if count == 0:
+                  raise SystemExit("Lender router import marker not found")
+              main.write_text(updated)
+
+          view = Path("apps/lender/src/views/PortalWorkspaceView.vue")
+          text = view.read_text()
+          marker = "const offers = computed(() => workspace.value?.offers ?? [])\n"
+          if "const selectedSubmission = computed" not in text:
+              addition = '''const selectedSubmission = computed<Record<string, unknown>>(() =>
+  ((submissionWorkspace.value?.submission as Record<string, unknown> | undefined) ?? {}),
+)
+const submissionStatusCounts = computed<Record<string, number>>(() =>
+  ((portfolio.value.submission_status_counts as Record<string, number> | undefined) ?? {}),
+)
+'''
+              if marker not in text:
+                  raise SystemExit("Lender computed marker not found")
+              text = text.replace(marker, marker + addition, 1)
+          text = text.replace(
+              "text((submissionWorkspace?.submission as Record<string, unknown>) || {}, 'status', 'Pending')",
+              "text(selectedSubmission, 'status', 'Pending')",
+          )
+          text = text.replace(
+              "formatDate((submissionWorkspace?.submission as Record<string, unknown>)?.submitted_at)",
+              "formatDate(selectedSubmission.submitted_at)",
+          )
+          text = text.replace(
+              "(portfolio.submission_status_counts as Record<string, number>) || {}",
+              "submissionStatusCounts",
+          )
+          view.write_text(text)
+          PY
+
+      - name: Install workspace
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            corepack enable
+            pnpm install --frozen-lockfile
+          elif [ -f yarn.lock ]; then
+            corepack enable
+            yarn install --immutable
+          elif [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Validate lender portal
+        id: validate
+        shell: bash
+        run: |
+          set +e
+          status=0
+          if [ -f pnpm-lock.yaml ]; then PM="pnpm"; elif [ -f yarn.lock ]; then PM="yarn"; else PM="npm"; fi
+          for script in typecheck lint test build; do
+            if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts['$script'] ? 0 : 1)"; then
+              if [ "$script" = "test" ]; then
+                $PM run "$script" -- --run || status=$?
+              else
+                $PM run "$script" || status=$?
+              fi
+            fi
+          done
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Record and publish branch result
+        env:
+          VALIDATION_STATUS: ${{ steps.validate.outputs.status }}
+        run: |
+          mkdir -p docs/evidence
+          node - <<'NODE'
+          const fs = require('fs')
+          const code = Number(process.env.VALIDATION_STATUS || '1')
+          fs.writeFileSync(
+            'docs/evidence/lender-portal-validation.json',
+            JSON.stringify(
+              {
+                work_package: 'feature/lender-portal',
+                status: code === 0 ? 'PASS' : 'FAIL',
+                validation_exit_code: code,
+                base_validation: 'borrower-portal=PASS',
+                typecheck_lint_test_build: 'EXECUTED_WHEN_CONFIGURED',
+                lender_decision_mode: 'PENDING_REVIEW_IDEMPOTENT',
+                live_capabilities_enabled: [],
+                production_deployed: false,
+                recorded_at: new Date().toISOString(),
+              },
+              null,
+              2,
+            ) + '\n',
+          )
+          NODE
+          rm -f .github/workflows/lender-portal-bootstrap-trigger.yml
+          rm -f .github/workflows/lender-portal-finalize-v2.yml
+          git add \
+            apps/lender/src/main.ts apps/lender/src/views/PortalWorkspaceView.vue \
+            docs/evidence/lender-portal-validation.json \
+            .github/workflows/lender-portal-bootstrap-trigger.yml \
+            .github/workflows/lender-portal-finalize-v2.yml
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(lender): synchronize and validate portal workspace"
+          fi
+          git push origin HEAD:feature/lender-portal
+
+      - name: Fail if validation failed
+        if: steps.validate.outputs.status != '0'
+        run: exit 1
