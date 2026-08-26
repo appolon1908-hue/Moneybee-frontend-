@@ -1,0 +1,40 @@
+name: generate-lockfile-review-artifact
+
+on:
+  push:
+    branches:
+      - "ops/secure-staging-scaffold"
+    paths:
+      - ".github/workflows/generate-lockfile-artifact.yml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+      - "apps/**/package.json"
+      - "packages/**/package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Generate deterministic review lockfile
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.15.0 --activate
+          pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
+          test -s pnpm-lock.yaml
+          sha256sum pnpm-lock.yaml > pnpm-lock.yaml.sha256
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: reviewed-pnpm-lock
+          path: |
+            pnpm-lock.yaml
+            pnpm-lock.yaml.sha256
+          if-no-files-found: error
+          retention-days: 3
