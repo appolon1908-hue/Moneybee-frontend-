@@ -5,8 +5,10 @@ export type PortalTaskStatus =
   | "IN_PROGRESS"
   | "BLOCKED"
   | "COMPLETED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "DISMISSED";
 
+export type PortalTaskObservedStatus = PortalTaskStatus | (string & {});
 export type PortalTaskPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
 
 export interface NavigationItem {
@@ -36,7 +38,7 @@ export interface PortalTask {
   task_type: string;
   title: string;
   description: string | null;
-  status: PortalTaskStatus;
+  status: PortalTaskObservedStatus;
   priority: PortalTaskPriority;
   assigned_to_subject: string | null;
   created_by_subject: string;

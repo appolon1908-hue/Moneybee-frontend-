@@ -1,5 +1,6 @@
 import { api } from "./core";
 import {
+  getAuthContext,
   queryString,
   withOrganization,
   type PortalTask,
@@ -7,71 +8,158 @@ import {
   type PortalTaskStatus,
 } from "./portal";
 
+export interface PageMeta {
+  limit: number;
+  offset: number;
+  total: number;
+}
+
 export interface AdminOperationsWorkspace {
-  metrics: {
-    applications: number;
-    active_applications: number;
-    lender_submissions: number;
-    pending_lender_submissions: number;
-    open_tasks: number;
-    urgent_tasks: number;
-    open_operational_exceptions: number;
+  principal: {
+    global_scope: boolean;
   };
+  metrics: Record<string, number>;
   work_queue: PortalTask[];
   operational_exceptions: Array<Record<string, unknown>>;
 }
 
+interface AdminOverviewWire {
+  leads: number;
+  applications: number;
+  applications_by_status: Record<string, number>;
+  submissions_needing_review: number;
+  open_tasks: number;
+  overdue_tasks: number;
+  unread_notifications: number;
+  open_conversations: number;
+  open_complaints: number;
+  open_operational_exceptions: number;
+  pending_outbox: number;
+  failed_integrations: number;
+  webhook_receipts_pending: number;
+}
+
+interface AdminTaskWire {
+  id: string;
+  application_id: string | null;
+  organization_id: string | null;
+  assignee_user_id: string | null;
+  assignee_subject: string | null;
+  task_type: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: PortalTaskPriority;
+  due_at: string | null;
+  completed_at: string | null;
+  source_type: string | null;
+  source_reference: string | null;
+  metadata_payload: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+interface PageWire<T> {
+  items: T[];
+  meta: PageMeta;
+}
+
+function normalizeTask(row: AdminTaskWire): PortalTask {
+  return {
+    id: row.id,
+    tenant_id: row.organization_id || "",
+    application_id: row.application_id,
+    task_type: row.task_type,
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    priority: row.priority,
+    assigned_to_subject: row.assignee_subject,
+    created_by_subject: "moneybee",
+    due_at: row.due_at,
+    completed_at: row.completed_at,
+    version: Number(row.metadata_payload?.version || 1),
+    metadata_payload: {
+      ...row.metadata_payload,
+      organization_id: row.organization_id,
+      assignee_user_id: row.assignee_user_id,
+      source_type: row.source_type,
+      source_reference: row.source_reference,
+    },
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
 export interface AdminTaskCreate {
-  tenant_id: string;
+  organization_id?: string | null;
   application_id?: string | null;
-  task_type?: string;
+  assignee_user_id?: string | null;
+  assignee_subject?: string | null;
+  task_type: string;
   title: string;
   description?: string | null;
   priority?: PortalTaskPriority;
-  assigned_to_subject?: string | null;
   due_at?: string | null;
+  source_type?: string | null;
+  source_reference?: string | null;
   metadata_payload?: Record<string, unknown>;
 }
 
 export interface AdminTaskPatch {
-  expected_version: number;
+  version?: number;
   status?: PortalTaskStatus;
   priority?: PortalTaskPriority;
-  assigned_to_subject?: string | null;
+  assignee_user_id?: string | null;
+  assignee_subject?: string | null;
   due_at?: string | null;
-  description?: string | null;
 }
 
 export interface AdminTaskQuery {
-  tenant_id?: string;
   application_id?: string;
   status?: string;
   priority?: string;
-  assigned_to_subject?: string;
+  assignee_subject?: string;
   limit?: number;
   offset?: number;
 }
 
-export interface AdminNotificationCreate {
-  tenant_id: string;
-  recipient_subject: string;
-  notification_type?: string;
+export interface AdminSearchResult {
+  resource_type: string;
+  resource_id: string;
   title: string;
-  body: string;
-  href?: string | null;
-  metadata_payload?: Record<string, unknown>;
+  subtitle: string | null;
+  status: string | null;
+  path: string;
+  updated_at: string | null;
 }
 
-export interface AdminSearchResults {
-  query: string;
-  leads: Array<Record<string, unknown>>;
-  organizations: Array<Record<string, unknown>>;
-  users: Array<Record<string, unknown>>;
+export interface AdminOrganization {
+  id: string;
+  name: string;
+  organization_type: string;
+  active: boolean;
+  member_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminOrganizationMember {
+  membership_id: string;
+  user_id: string;
+  email: string | null;
+  display_name: string | null;
+  membership_type: string;
+  membership_active: boolean;
+  user_active: boolean;
+  roles: string[];
+  created_at: string;
 }
 
 export interface WebhookReceipt {
   id: string;
   provider: string;
+  provider_event_id: string;
   event_id: string;
   event_type: string;
   tenant_id: string | null;
@@ -82,7 +170,39 @@ export interface WebhookReceipt {
   last_error: string | null;
   processed_at: string | null;
   created_at: string;
+  updated_at?: string;
+  payload_metadata?: Record<string, unknown>;
   payload?: unknown;
+}
+
+interface WebhookReceiptWire {
+  id: string;
+  provider: string;
+  provider_event_id: string;
+  event_type: string;
+  payload_hash: string;
+  payload_metadata?: Record<string, unknown>;
+  status: string;
+  processed_at: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+function normalizeReceipt(row: WebhookReceiptWire): WebhookReceipt {
+  return {
+    ...row,
+    event_id: row.provider_event_id,
+    tenant_id:
+      typeof row.payload_metadata?.tenant_id === "string"
+        ? row.payload_metadata.tenant_id
+        : null,
+    signature_valid: true,
+    attempts: Number(row.payload_metadata?.attempts || 0),
+    last_error:
+      typeof row.payload_metadata?.last_error === "string"
+        ? row.payload_metadata.last_error
+        : null,
+  };
 }
 
 export interface PublicIntakeSummary {
@@ -141,97 +261,132 @@ export interface CrmDeliverySummary {
   moneybee_intake_id: string | null;
 }
 
-export function getAdminOperationsWorkspace(
+export async function getAdminOperationsWorkspace(
   organizationId?: string,
 ): Promise<AdminOperationsWorkspace> {
-  return api<AdminOperationsWorkspace>(
-    "/admin/operations/workspace",
-    withOrganization(organizationId),
-  );
+  const options = withOrganization(organizationId);
+  const [overview, queue, exceptions, context] = await Promise.all([
+    api<AdminOverviewWire>("/admin/overview", options),
+    listAdminTasks({ limit: 100 }, organizationId),
+    api<Array<Record<string, unknown>>>(
+      "/admin/operational-exceptions?status=OPEN&limit=100",
+      options,
+    ),
+    getAuthContext(organizationId),
+  ]);
+  return {
+    principal: {
+      global_scope:
+        context.permissions.includes("*") ||
+        context.membership_types.includes("MONEYBEE"),
+    },
+    metrics: {
+      lead_count: overview.leads,
+      application_count: overview.applications,
+      lender_submission_count: overview.submissions_needing_review,
+      open_task_count: overview.open_tasks,
+      overdue_task_count: overview.overdue_tasks,
+      unread_notification_count: overview.unread_notifications,
+      open_conversation_count: overview.open_conversations,
+      open_complaint_count: overview.open_complaints,
+      open_operational_exception_count: overview.open_operational_exceptions,
+      pending_outbox_count: overview.pending_outbox,
+      failed_integration_count: overview.failed_integrations,
+      webhook_receipts_pending: overview.webhook_receipts_pending,
+      ...overview.applications_by_status,
+    },
+    work_queue: queue.items,
+    operational_exceptions: exceptions,
+  };
 }
 
-export function listAdminTasks(
+export async function listAdminTasks(
   query: AdminTaskQuery = {},
   organizationId?: string,
-): Promise<PortalTask[]> {
-  return api<PortalTask[]>(
-    `/admin/tasks${queryString(query)}`,
+): Promise<PageWire<PortalTask>> {
+  const limit = Math.min(Math.max(query.limit || 100, 1), 200);
+  const wire = await api<PageWire<AdminTaskWire>>(
+    `/admin/tasks${queryString({
+      status: query.status,
+      assignee_subject: query.assignee_subject,
+      application_id: query.application_id,
+      limit,
+      offset: query.offset || 0,
+    })}`,
     withOrganization(organizationId),
   );
+  const items = wire.items.map(normalizeTask).filter((item) =>
+    query.priority ? item.priority === query.priority : true,
+  );
+  return { items, meta: wire.meta };
 }
 
-export function createAdminTask(
+export async function createAdminTask(
   payload: AdminTaskCreate,
   organizationId?: string,
 ): Promise<PortalTask> {
-  return api<PortalTask>(
+  const row = await api<AdminTaskWire>(
     "/admin/tasks",
     withOrganization(organizationId, {
       method: "POST",
       body: JSON.stringify(payload),
     }),
   );
+  return normalizeTask(row);
 }
 
-export function updateAdminTask(
+export async function updateAdminTask(
   taskId: string,
   payload: AdminTaskPatch,
   organizationId?: string,
 ): Promise<PortalTask> {
-  return api<PortalTask>(
+  const { version: _version, ...body } = payload;
+  const row = await api<AdminTaskWire>(
     `/admin/tasks/${encodeURIComponent(taskId)}`,
     withOrganization(organizationId, {
       method: "PATCH",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     }),
   );
-}
-
-export function createAdminNotification(
-  payload: AdminNotificationCreate,
-  organizationId?: string,
-): Promise<Record<string, unknown>> {
-  return api<Record<string, unknown>>(
-    "/admin/notifications",
-    withOrganization(organizationId, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-  );
+  return normalizeTask(row);
 }
 
 export function searchAdminPortal(
   query: string,
   organizationId?: string,
-): Promise<AdminSearchResults> {
-  return api<AdminSearchResults>(
-    `/admin/search${queryString({ q: query })}`,
+): Promise<AdminSearchResult[]> {
+  return api<AdminSearchResult[]>(
+    `/admin/search${queryString({ q: query, limit: 50 })}`,
     withOrganization(organizationId),
   );
 }
 
 export function listAdminAuditEvents(
   query: {
+    actor_id?: string;
     action?: string;
-    entity_type?: string;
-    actor_subject?: string;
-    before?: string;
+    resource_type?: string;
+    resource_id?: string;
     limit?: number;
+    offset?: number;
   } = {},
   organizationId?: string,
-): Promise<Array<Record<string, unknown>>> {
-  return api<Array<Record<string, unknown>>>(
-    `/admin/audit${queryString(query)}`,
+): Promise<PageWire<Record<string, unknown>>> {
+  return api<PageWire<Record<string, unknown>>>(
+    `/admin/audit-events${queryString(query)}`,
     withOrganization(organizationId),
   );
 }
 
 export function listAdminOrganizations(
-  query: { organization_type?: string; active?: boolean; limit?: number; offset?: number } = {},
+  query: { organization_type?: string; active?: boolean; limit?: number } = {},
   organizationId?: string,
-): Promise<Array<Record<string, unknown>>> {
-  return api<Array<Record<string, unknown>>>(
-    `/admin/organizations${queryString(query)}`,
+): Promise<AdminOrganization[]> {
+  return api<AdminOrganization[]>(
+    `/admin/organizations${queryString({
+      ...query,
+      limit: Math.min(Math.max(query.limit || 100, 1), 200),
+    })}`,
     withOrganization(organizationId),
   );
 }
@@ -239,53 +394,43 @@ export function listAdminOrganizations(
 export function listAdminOrganizationMembers(
   targetOrganizationId: string,
   organizationId?: string,
-): Promise<Array<Record<string, unknown>>> {
-  return api<Array<Record<string, unknown>>>(
+): Promise<AdminOrganizationMember[]> {
+  return api<AdminOrganizationMember[]>(
     `/admin/organizations/${encodeURIComponent(targetOrganizationId)}/members`,
     withOrganization(organizationId),
   );
 }
 
-export function listWebhookReceipts(
-  query: {
-    provider?: string;
-    status?: string;
-    event_type?: string;
-    before?: string;
-    limit?: number;
-  } = {},
+export function getIntegrationHealth(
   organizationId?: string,
-): Promise<WebhookReceipt[]> {
-  return api<WebhookReceipt[]>(
-    `/admin/webhook-gateway/receipts${queryString(query)}`,
+): Promise<Record<string, unknown>> {
+  return api<Record<string, unknown>>(
+    "/admin/integration-control-plane",
     withOrganization(organizationId),
   );
 }
 
-export function getWebhookReceipt(
-  receiptId: string,
-  includePayload = false,
+export async function listWebhookReceipts(
+  query: { provider?: string; status?: string; limit?: number } = {},
   organizationId?: string,
-): Promise<WebhookReceipt> {
-  return api<WebhookReceipt>(
-    `/admin/webhook-gateway/receipts/${encodeURIComponent(receiptId)}${queryString({
-      include_payload: includePayload,
+): Promise<WebhookReceipt[]> {
+  const rows = await api<WebhookReceiptWire[]>(
+    `/admin/webhook-receipts${queryString({
+      ...query,
+      limit: Math.min(Math.max(query.limit || 100, 1), 200),
     })}`,
     withOrganization(organizationId),
   );
+  return rows.map(normalizeReceipt);
 }
 
 export function requeueWebhookReceipt(
   receiptId: string,
-  idempotencyKey: string,
   organizationId?: string,
-): Promise<{ requeued: true; receipt: WebhookReceipt }> {
-  return api<{ requeued: true; receipt: WebhookReceipt }>(
-    `/admin/webhook-gateway/receipts/${encodeURIComponent(receiptId)}/requeue`,
-    withOrganization(organizationId, {
-      method: "POST",
-      idempotencyKey,
-    }),
+): Promise<{ id: string; status: string; inbox_status: string }> {
+  return api<{ id: string; status: string; inbox_status: string }>(
+    `/admin/webhook-receipts/${encodeURIComponent(receiptId)}/requeue`,
+    withOrganization(organizationId, { method: "POST" }),
   );
 }
 
