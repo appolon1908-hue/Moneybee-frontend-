@@ -1,3 +1,4 @@
+# Temporary read-only generator; remove after committing the reviewed lockfile.
 name: generate-lockfile-review-artifact
 
 on:
