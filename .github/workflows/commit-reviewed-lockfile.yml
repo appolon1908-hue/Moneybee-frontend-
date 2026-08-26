@@ -1,0 +1,46 @@
+# One-shot workflow. Remove immediately after it commits pnpm-lock.yaml.
+name: commit-reviewed-pnpm-lock
+
+on:
+  push:
+    branches:
+      - "ops/secure-staging-scaffold"
+    paths:
+      - ".github/workflows/commit-reviewed-lockfile.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: commit-reviewed-pnpm-lock
+  cancel-in-progress: false
+
+jobs:
+  commit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ops/secure-staging-scaffold
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Generate and commit only the reviewed dependency lock
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/ops/secure-staging-scaffold"
+          corepack enable
+          corepack prepare pnpm@10.15.0 --activate
+          pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
+          test -s pnpm-lock.yaml
+          actual="$(sha256sum pnpm-lock.yaml | awk '{print $1}')"
+          test "$actual" = "6d2511464f0330bd6fb48197d5f5e06596ff8a7d54842132c9e73c26dcacf595"
+          git diff --exit-code -- . ':(exclude)pnpm-lock.yaml'
+          git add pnpm-lock.yaml
+          test "$(git diff --cached --name-only)" = "pnpm-lock.yaml"
+          git config user.name "MoneyBee Lockfile Bot"
+          git config user.email "appolon1908-hue@users.noreply.github.com"
+          git commit -m "build(frontend): commit reviewed pnpm lockfile"
+          git push origin HEAD:refs/heads/ops/secure-staging-scaffold
