@@ -1,0 +1,1 @@
+The automation branch is not part of the portal delivery stack.
