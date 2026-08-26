@@ -79,8 +79,22 @@ export const lenderPortalApi = {
     };
   },
 
-  portfolio: getLenderPortfolio,
-  submissionWorkspace: getLenderSubmissionWorkspace,
+  async portfolio(organizationId?: string): Promise<Record<string, unknown>> {
+    return (await getLenderPortfolio(organizationId)) as unknown as Record<
+      string,
+      unknown
+    >;
+  },
+
+  async submissionWorkspace(
+    submissionId: string,
+    organizationId?: string,
+  ): Promise<Record<string, unknown>> {
+    return (await getLenderSubmissionWorkspace(
+      submissionId,
+      organizationId,
+    )) as unknown as Record<string, unknown>;
+  },
 
   patchProgram(
     programId: string,
