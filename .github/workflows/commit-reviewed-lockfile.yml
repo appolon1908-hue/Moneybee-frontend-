@@ -1,4 +1,4 @@
-# One-shot workflow. Remove immediately after it commits pnpm-lock.yaml.
+# One-shot workflow execution. Remove immediately after pnpm-lock.yaml is committed.
 name: commit-reviewed-pnpm-lock
 
 on:
