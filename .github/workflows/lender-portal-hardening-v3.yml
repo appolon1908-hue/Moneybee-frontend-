@@ -1,0 +1,165 @@
+name: Lender portal hardening v3
+
+on:
+  push:
+    branches:
+      - feature/lender-portal
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lender-portal-hardening-v3
+  cancel-in-progress: false
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/lender-portal
+          fetch-depth: 0
+
+      - name: Wait for validated borrower portal and merge it
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "moneybee-automation"
+          git config user.email "actions@users.noreply.github.com"
+          ready=0
+          for attempt in $(seq 1 80); do
+            git fetch origin feature/borrower-portal
+            if git show origin/feature/borrower-portal:docs/evidence/borrower-portal-validation.json > /tmp/borrower.json 2>/dev/null; then
+              if [ "$(jq -r '.status // ""' /tmp/borrower.json)" = "PASS" ]; then
+                ready=1
+                break
+              fi
+            fi
+            sleep 15
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "Validated borrower portal was not available" >&2
+            exit 1
+          fi
+          git merge -X theirs --no-edit origin/feature/borrower-portal
+
+      - name: Move all submission casts into script setup
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("apps/lender/src/views/PortalWorkspaceView.vue")
+          text = path.read_text()
+          marker = '''const submissionStatusCounts = computed<Record<string, number>>(() =>
+  ((portfolio.value.submission_status_counts as Record<string, number> | undefined) ?? {}),
+)
+'''
+          addition = '''const selectedSubmissionOffers = computed<Array<Record<string, unknown>>>(() => {
+  const candidate = submissionWorkspace.value?.offers
+  return Array.isArray(candidate)
+    ? (candidate as Array<Record<string, unknown>>)
+    : []
+})
+const selectedSubmissionTasks = computed<Array<Record<string, unknown>>>(() => {
+  const candidate = submissionWorkspace.value?.tasks
+  return Array.isArray(candidate)
+    ? (candidate as Array<Record<string, unknown>>)
+    : []
+})
+'''
+          if "const selectedSubmissionOffers = computed" not in text:
+              if marker not in text:
+                  raise SystemExit("Lender submission-status computed marker not found")
+              text = text.replace(marker, marker + addition, 1)
+          text = text.replace(
+              "((submissionWorkspace?.offers as unknown[]) || []).length",
+              "selectedSubmissionOffers.length",
+          )
+          text = text.replace(
+              "((submissionWorkspace?.tasks as unknown[]) || []).length",
+              "selectedSubmissionTasks.length",
+          )
+          path.write_text(text)
+          PY
+
+      - name: Install and validate frontend
+        id: validate
+        shell: bash
+        run: |
+          set +e
+          status=0
+          if [ -f pnpm-lock.yaml ]; then
+            corepack enable
+            pnpm install --frozen-lockfile || status=$?
+            PM="pnpm"
+          elif [ -f yarn.lock ]; then
+            corepack enable
+            yarn install --immutable || status=$?
+            PM="yarn"
+          elif [ -f package-lock.json ]; then
+            npm ci || status=$?
+            PM="npm"
+          else
+            npm install || status=$?
+            PM="npm"
+          fi
+          for script in typecheck lint test build; do
+            if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts['$script'] ? 0 : 1)"; then
+              if [ "$script" = "test" ]; then
+                $PM run "$script" -- --run || status=$?
+              else
+                $PM run "$script" || status=$?
+              fi
+            fi
+          done
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Record and publish hardened lender UI
+        env:
+          VALIDATION_STATUS: ${{ steps.validate.outputs.status }}
+        run: |
+          mkdir -p docs/evidence
+          node - <<'NODE'
+          const fs = require('fs')
+          const code = Number(process.env.VALIDATION_STATUS || '1')
+          fs.writeFileSync(
+            'docs/evidence/lender-portal-validation-v3.json',
+            JSON.stringify(
+              {
+                work_package: 'feature/lender-portal',
+                revision: 3,
+                status: code === 0 ? 'PASS' : 'FAIL',
+                validation_exit_code: code,
+                base_validation: 'borrower-portal=PASS',
+                template_type_casts: 'MOVED_TO_SCRIPT_SETUP',
+                decision_mode: 'PENDING_REVIEW_IDEMPOTENT',
+                live_capabilities_enabled: [],
+                production_deployed: false,
+                recorded_at: new Date().toISOString(),
+              },
+              null,
+              2,
+            ) + '\n',
+          )
+          NODE
+          rm -f .github/workflows/lender-portal-finalize-v2.yml
+          rm -f .github/workflows/lender-portal-hardening-v3.yml
+          git add \
+            apps/lender/src/views/PortalWorkspaceView.vue \
+            docs/evidence/lender-portal-validation-v3.json \
+            .github/workflows/lender-portal-finalize-v2.yml \
+            .github/workflows/lender-portal-hardening-v3.yml
+          if ! git diff --cached --quiet; then
+            git commit -m "fix(lender): harden workspace template typing"
+          fi
+          git fetch origin feature/lender-portal
+          if ! git merge-base --is-ancestor origin/feature/lender-portal HEAD; then
+            git rebase origin/feature/lender-portal
+          fi
+          git push origin HEAD:feature/lender-portal
+
+      - name: Fail if validation failed
+        if: steps.validate.outputs.status != '0'
+        run: exit 1
