@@ -19,6 +19,8 @@ export interface AuthManagerOptions {
   postLogoutRedirectUri: string
   silentRedirectUri?: string
   scope?: string
+  googleIdentityProviderAlias?: string
+  googleLoginEnabled?: boolean
 }
 
 type UserManagerPort = Pick<
@@ -52,6 +54,8 @@ function runtimeOptions(): AuthManagerOptions {
     postLogoutRedirectUri: `${window.location.origin}/auth/login`,
     silentRedirectUri: `${window.location.origin}/auth/silent-callback`,
     scope: "openid profile email",
+    googleIdentityProviderAlias: String(import.meta.env.VITE_GOOGLE_IDP_ALIAS || "google"),
+    googleLoginEnabled: String(import.meta.env.VITE_GOOGLE_LOGIN_ENABLED || "true") !== "false",
   }
 }
 
@@ -84,9 +88,25 @@ export class MoneyBeeAuthManager {
     private readonly manager: UserManagerPort = new UserManager(oidcSettings(options)),
   ) {}
 
-  async login(returnTo = "/dashboard"): Promise<void> {
+  async login(returnTo = "/dashboard", identityProvider?: string): Promise<void> {
     window.sessionStorage.setItem(RETURN_TO_KEY, safeReturnTo(returnTo))
-    await this.manager.signinRedirect()
+    await this.manager.signinRedirect(
+      identityProvider
+        ? { extraQueryParams: { kc_idp_hint: identityProvider } }
+        : undefined,
+    )
+  }
+
+  async loginWithGoogle(returnTo = "/dashboard"): Promise<void> {
+    if (!this.isGoogleLoginEnabled()) {
+      throw new AuthConfigurationError("Google login is disabled for this portal.")
+    }
+    await this.login(returnTo, this.options.googleIdentityProviderAlias || "google")
+  }
+
+  isGoogleLoginEnabled(): boolean {
+    return this.options.googleLoginEnabled !== false
+      && Boolean(this.options.googleIdentityProviderAlias || "google")
   }
 
   async handleCallback(): Promise<string> {
