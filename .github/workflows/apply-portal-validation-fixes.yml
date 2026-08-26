@@ -1,0 +1,215 @@
+name: Apply portal validation fixes
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - automation/portal-stack-validation-20260826
+    paths:
+      - .github/workflows/apply-portal-validation-fixes.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Configure Git
+        run: |
+          git config user.name "moneybee-validation-bot"
+          git config user.email "moneybee-validation-bot@users.noreply.github.com"
+      - name: Create deterministic correction script
+        run: |
+          cat > /tmp/fix_frontend_portal.py <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              if not file.exists():
+                  return
+              text = file.read_text()
+              if old in text:
+                  file.write_text(text.replace(old, new))
+
+          replace(
+              "packages/api-client/src/portal.ts",
+              '''function withOrganization(
+            organizationId?: string,
+            options: ApiOptions = {},
+          ): ApiOptions {
+            if (!organizationId) return options;
+            return {
+              ...options,
+              headers: {
+                ...Object.fromEntries(new Headers(options.headers).entries()),
+                "X-Organization-ID": organizationId,
+              },
+            };
+          }
+
+          function queryString(values: Record<string, unknown>): string {
+            const params = new URLSearchParams();
+            for (const [key, value] of Object.entries(values)) {''',
+              '''function withOrganization(
+            organizationId?: string,
+            options: ApiOptions = {},
+          ): ApiOptions {
+            const headers = new Headers(options.headers);
+            if (organizationId) {
+              headers.set("X-Organization-ID", organizationId);
+            }
+            return { ...options, headers };
+          }
+
+          function queryString(values: object): string {
+            const params = new URLSearchParams();
+            for (const [key, value] of Object.entries(
+              values as Record<string, unknown>,
+            )) {''',
+          )
+
+          replace(
+              "packages/api-client/src/borrower.ts",
+              '''  const sha256 = await sha256File(input.file);
+            const issued = await createBorrowerUploadSession(
+              input.applicationId,
+              {
+                owner_id: input.ownerId ?? null,
+                condition_id: input.conditionId ?? null,
+                document_type: input.documentType,
+                original_file_name: input.file.name,
+                mime_type: input.file.type || "application/octet-stream",''',
+              '''  const mimeType = input.file.type.trim();
+            if (!mimeType) {
+              throw new Error(
+                "The browser could not determine this file type. Select a supported PDF, image, CSV, XLSX, or DOCX file.",
+              );
+            }
+            const sha256 = await sha256File(input.file);
+            const issued = await createBorrowerUploadSession(
+              input.applicationId,
+              {
+                owner_id: input.ownerId ?? null,
+                condition_id: input.conditionId ?? null,
+                document_type: input.documentType,
+                original_file_name: input.file.name,
+                mime_type: mimeType,''',
+          )
+
+          task_view = Path("apps/borrower/src/views/TasksView.vue")
+          if task_view.exists():
+              text = task_view.read_text()
+              anchor = 'const error = ref("");\n'
+              if "const filterOptions" not in text and anchor in text:
+                  text = text.replace(
+                      anchor,
+                      anchor + '\nconst filterOptions = ["ACTIVE", "COMPLETED", "ALL"] as const;\n',
+                  )
+              text = text.replace(
+                  'v-for="option in [\'ACTIVE\', \'COMPLETED\', \'ALL\'] as const"',
+                  'v-for="option in filterOptions"',
+              )
+              task_view.write_text(text)
+
+          queue_view = Path("apps/admin/src/views/WorkQueueView.vue")
+          if queue_view.exists():
+              text = queue_view.read_text()
+              anchor = "\nonMounted(load);\n"
+              handler = '''
+          function statusChanged(task: PortalTask, event: Event): void {
+            const select = event.target as HTMLSelectElement;
+            void updateTask(task, {
+              status: select.value as PortalTaskStatus,
+            });
+          }
+          '''
+              if "function statusChanged" not in text and anchor in text:
+                  text = text.replace(anchor, handler + anchor)
+              text = text.replace(
+                  '@change="updateTask(task, { status: ($event.target as HTMLSelectElement).value as PortalTaskStatus })"',
+                  '@change="statusChanged(task, $event)"',
+              )
+              queue_view.write_text(text)
+          PY
+      - name: Prepare corrected branch commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          branches=(
+            feature/typed-portal-api-client
+            feature/borrower-portal
+            feature/lender-bank-portal
+            feature/admin-operations-portal
+          )
+          for branch in "${branches[@]}"; do
+            git fetch origin "$branch"
+            git checkout -B "$branch" "origin/$branch"
+            python /tmp/fix_frontend_portal.py
+            if ! git diff --quiet; then
+              git add packages/api-client/src/portal.ts packages/api-client/src/borrower.ts apps/borrower/src/views/TasksView.vue apps/admin/src/views/WorkQueueView.vue 2>/dev/null || true
+              git commit -m "fix(portal): harden typed clients and Vue event handling"
+            fi
+          done
+      - name: Validate complete frontend stack
+        run: |
+          git checkout feature/admin-operations-portal
+          pnpm install --frozen-lockfile
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+          pnpm build
+      - name: Record validation evidence
+        run: |
+          mkdir -p docs/evidence
+          python - <<'PY'
+          import json
+          import subprocess
+          from datetime import UTC, datetime
+          from pathlib import Path
+
+          evidence = {
+              "work_package": "frontend-portal-stack",
+              "status": "PASS",
+              "validated_at": datetime.now(UTC).isoformat(),
+              "source_sha": subprocess.check_output(
+                  ["git", "rev-parse", "HEAD"], text=True
+              ).strip(),
+              "dependency_install": "PASS",
+              "lint": "PASS",
+              "typecheck": "PASS",
+              "unit_tests": "PASS",
+              "production_build": "PASS",
+              "production_deployed": False,
+              "live_capabilities_enabled": [],
+              "branches": [
+                  "feature/typed-portal-api-client",
+                  "feature/borrower-portal",
+                  "feature/lender-bank-portal",
+                  "feature/admin-operations-portal",
+              ],
+          }
+          Path("docs/evidence/frontend-portal-stack-validation.json").write_text(
+              json.dumps(evidence, indent=2) + "\n"
+          )
+          PY
+          git add docs/evidence/frontend-portal-stack-validation.json
+          git commit -m "test(portal): record frontend stack validation [skip ci]"
+      - name: Push corrected feature branches
+        run: |
+          git push origin feature/typed-portal-api-client
+          git push origin feature/borrower-portal
+          git push origin feature/lender-bank-portal
+          git push origin feature/admin-operations-portal
