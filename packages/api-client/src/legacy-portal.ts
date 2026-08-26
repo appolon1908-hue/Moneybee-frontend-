@@ -111,7 +111,7 @@ export const portalApi = {
 };
 
 export const lenderPortalApi = {
-  async workspace(organizationId?: string): Promise<LenderWorkspace> {
+  async workspace(organizationId?: string | null): Promise<LenderWorkspace> {
     const [workspace, programs, portfolio] = await Promise.all([
       getLenderWorkspace(organizationId),
       listLenderPrograms(undefined, organizationId),
@@ -135,7 +135,7 @@ export const lenderPortalApi = {
   },
 
   async bankAnalysisQueue(
-    organizationId?: string,
+    organizationId?: string | null,
   ): Promise<{ items: Array<Record<string, unknown>> }> {
     const rows = await listBankAnalysisQueue(undefined, organizationId);
     return {
@@ -148,7 +148,9 @@ export const lenderPortalApi = {
     };
   },
 
-  async portfolio(organizationId?: string): Promise<Record<string, unknown>> {
+  async portfolio(
+    organizationId?: string | null,
+  ): Promise<Record<string, unknown>> {
     return (await getLenderPortfolio(organizationId)) as unknown as Record<
       string,
       unknown
@@ -157,7 +159,7 @@ export const lenderPortalApi = {
 
   async submissionWorkspace(
     submissionId: string,
-    organizationId?: string,
+    organizationId?: string | null,
   ): Promise<Record<string, unknown>> {
     return (await getLenderSubmissionWorkspace(
       submissionId,
@@ -169,7 +171,7 @@ export const lenderPortalApi = {
     programId: string,
     payload: { active?: boolean },
     version: number,
-    organizationId?: string,
+    organizationId?: string | null,
   ) {
     return updateLenderProgram(programId, version, payload, organizationId);
   },
@@ -178,7 +180,7 @@ export const lenderPortalApi = {
     submissionId: string,
     payload: LenderDecisionInput,
     idempotencyKey: string,
-    organizationId?: string,
+    organizationId?: string | null,
   ) {
     const result = await recordLenderDecision(
       submissionId,
