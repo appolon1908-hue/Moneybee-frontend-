@@ -1,0 +1,1 @@
+Validation tooling must not merge or deploy portal branches.
