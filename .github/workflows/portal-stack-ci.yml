@@ -1,0 +1,43 @@
+name: Portal stack CI
+
+on:
+  push:
+    branches:
+      - "feature/typed-portal-api-client"
+      - "feature/borrower-portal"
+      - "feature/lender-bank-portal"
+      - "feature/admin-operations-portal"
+  pull_request:
+    branches:
+      - "frontend/keycloak-pkce"
+      - "feature/typed-portal-api-client"
+      - "feature/borrower-portal"
+      - "feature/lender-bank-portal"
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Test
+        run: pnpm test -- --run
+      - name: Build all portals
+        run: pnpm build
