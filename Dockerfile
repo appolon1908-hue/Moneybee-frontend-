@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1.7
 ARG NODE_BASE_IMAGE=node:22-alpine
+ARG NGINX_BASE_IMAGE=nginx:1.27-alpine
+
 FROM ${NODE_BASE_IMAGE} AS build
 ARG APP=marketing
 ARG VITE_API_BASE_URL=http://localhost:8000/api/v2
@@ -26,7 +28,6 @@ COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @moneybee/$APP build
 
-ARG NGINX_BASE_IMAGE=nginx:1.27-alpine
 FROM ${NGINX_BASE_IMAGE} AS runtime
 ARG APP=marketing
 ARG SOURCE_SHA=unknown
