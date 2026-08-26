@@ -1,0 +1,1 @@
+Temporary connector probe documents on this automation branch must not be merged.
