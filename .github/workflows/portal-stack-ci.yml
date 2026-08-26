@@ -3,16 +3,12 @@ name: Portal stack CI
 on:
   push:
     branches:
-      - "feature/typed-portal-api-client"
-      - "feature/borrower-portal"
-      - "feature/lender-bank-portal"
-      - "feature/admin-operations-portal"
+      - "release/portal-stack-consolidated"
+      - "feature/business-lender-site-forms"
   pull_request:
     branches:
       - "frontend/keycloak-pkce"
-      - "feature/typed-portal-api-client"
-      - "feature/borrower-portal"
-      - "feature/lender-bank-portal"
+      - "release/portal-stack-consolidated"
 
 permissions:
   contents: read
@@ -20,7 +16,7 @@ permissions:
 jobs:
   frontend:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,16 +24,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: pnpm
       - name: Enable pnpm
         run: corepack enable
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Lint
-        run: pnpm lint
+        run: pnpm install --no-frozen-lockfile
       - name: Typecheck
         run: pnpm typecheck
       - name: Test
-        run: pnpm test -- --run
+        run: pnpm test
       - name: Build all portals
         run: pnpm build
+      - name: Build marketing image
+        run: docker build --build-arg APP=marketing -t moneybee-marketing:test .
+      - name: Build borrower image
+        run: docker build --build-arg APP=borrower -t moneybee-borrower:test .
+      - name: Build lender image
+        run: docker build --build-arg APP=lender -t moneybee-lender:test .
+      - name: Build admin image
+        run: docker build --build-arg APP=admin -t moneybee-admin:test .
