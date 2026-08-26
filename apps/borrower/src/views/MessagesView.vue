@@ -129,7 +129,10 @@ onMounted(load);
           @click="selectedConversationId = conversation.id; loadMessages()"
         >
           <strong>{{ conversation.topic }}</strong>
-          <small>{{ conversation.status }} · {{ new Date(conversation.last_message_at).toLocaleString() }}</small>
+          <small>
+            {{ conversation.status }} ·
+            {{ conversation.last_message_at ? new Date(conversation.last_message_at).toLocaleString() : "No messages yet" }}
+          </small>
         </button>
         <p v-if="!conversations.length" class="empty">No conversations yet.</p>
       </aside>
