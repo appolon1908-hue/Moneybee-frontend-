@@ -94,7 +94,7 @@ export interface LenderPortfolio {
 }
 
 export function getLenderWorkspace(
-  organizationId?: string,
+  organizationId?: string | null,
 ): Promise<LenderWorkspaceResponse> {
   return api<LenderWorkspaceResponse>(
     "/lender/workspace",
@@ -104,7 +104,7 @@ export function getLenderWorkspace(
 
 export function listLenderPrograms(
   active?: boolean,
-  organizationId?: string,
+  organizationId?: string | null,
 ): Promise<LenderProgram[]> {
   return api<LenderProgram[]>(
     `/lender/programs${queryString({ active })}`,
@@ -116,7 +116,7 @@ export function updateLenderProgram(
   programId: string,
   version: number,
   payload: LenderProgramPatch,
-  organizationId?: string,
+  organizationId?: string | null,
 ): Promise<LenderProgram> {
   return api<LenderProgram>(
     `/lender/programs/${encodeURIComponent(programId)}`,
@@ -130,7 +130,7 @@ export function updateLenderProgram(
 
 export function getLenderSubmissionWorkspace(
   submissionId: string,
-  organizationId?: string,
+  organizationId?: string | null,
 ): Promise<LenderSubmissionWorkspace> {
   return api<LenderSubmissionWorkspace>(
     `/lender/submissions/${encodeURIComponent(submissionId)}/workspace`,
@@ -141,7 +141,7 @@ export function getLenderSubmissionWorkspace(
 export function assignLenderSubmission(
   submissionId: string,
   assignedToSubject: string,
-  organizationId?: string,
+  organizationId?: string | null,
 ): Promise<LenderSubmissionSummary> {
   return api<LenderSubmissionSummary>(
     `/lender/submissions/${encodeURIComponent(submissionId)}/assignment`,
@@ -156,7 +156,7 @@ export function recordLenderDecision(
   submissionId: string,
   payload: LenderDecisionCreate,
   idempotencyKey: string,
-  organizationId?: string,
+  organizationId?: string | null,
 ): Promise<LenderDecisionResult> {
   return api<LenderDecisionResult>(
     `/lender/submissions/${encodeURIComponent(submissionId)}/decision`,
@@ -170,7 +170,7 @@ export function recordLenderDecision(
 
 export function listBankAnalysisQueue(
   status?: string,
-  organizationId?: string,
+  organizationId?: string | null,
 ): Promise<BankAnalysisQueueItem[]> {
   return api<BankAnalysisQueueItem[]>(
     `/lender/bank-analysis-queue${queryString({ status })}`,
@@ -179,7 +179,7 @@ export function listBankAnalysisQueue(
 }
 
 export function getLenderPortfolio(
-  organizationId?: string,
+  organizationId?: string | null,
 ): Promise<LenderPortfolio> {
   return api<LenderPortfolio>(
     "/lender/portfolio",
