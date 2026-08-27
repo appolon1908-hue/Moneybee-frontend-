@@ -12,6 +12,7 @@ export interface PortalGuard {
 export function authRoutes(): RouteRecordRaw[] {
   return [
     { path: "/auth/login", component: AuthRouteView, meta: { authAction: "login", public: true } },
+    { path: "/auth/register", component: AuthRouteView, meta: { authAction: "register", public: true } },
     { path: "/auth/callback", component: AuthRouteView, meta: { authAction: "callback", public: true } },
     { path: "/auth/silent-callback", component: AuthRouteView, meta: { authAction: "silent-callback", public: true } },
     { path: "/auth/logout", component: AuthRouteView, meta: { authAction: "logout", public: true } },
