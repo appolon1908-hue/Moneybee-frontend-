@@ -89,11 +89,46 @@ export class MoneyBeeAuthManager {
     await this.manager.signinRedirect()
   }
 
+  async register(returnTo = "/dashboard"): Promise<void> {
+    if (this.options.clientId !== "moneybee-borrower") {
+      throw new AuthConfigurationError("Public registration is available only for the borrower portal.")
+    }
+    window.sessionStorage.setItem(RETURN_TO_KEY, safeReturnTo(returnTo))
+    await this.manager.signinRedirect({ prompt: "create" })
+  }
+
+  private async bootstrapBorrowerAccount(accessToken: string): Promise<void> {
+    if (this.options.clientId !== "moneybee-borrower") return
+    const requestId = crypto.randomUUID()
+    const response = await fetch(`${this.options.apiBaseUrl}/account/bootstrap`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        "X-Request-ID": requestId,
+        "X-Correlation-ID": requestId,
+      },
+      credentials: "same-origin",
+    })
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({})) as Record<string, unknown>
+      const detail = payload.detail && typeof payload.detail === "object"
+        ? payload.detail as Record<string, unknown>
+        : payload
+      throw new LocalIdentityError(
+        String(detail.message || detail.detail || "MoneyBee account provisioning could not be completed."),
+        response.status,
+        String(detail.code || "ACCOUNT_BOOTSTRAP_FAILED"),
+      )
+    }
+  }
+
   async handleCallback(): Promise<string> {
     const user = await this.manager.signinRedirectCallback()
     if (!user || user.expired || !user.access_token) {
       throw new LocalIdentityError("The authentication callback did not create a valid session.", 401, "SESSION_INVALID")
     }
+    await this.bootstrapBorrowerAccount(user.access_token)
     this.clearLocalPrincipal()
     const returnTo = safeReturnTo(window.sessionStorage.getItem(RETURN_TO_KEY))
     window.sessionStorage.removeItem(RETURN_TO_KEY)
@@ -154,10 +189,10 @@ export class MoneyBeeAuthManager {
     const requestId = crypto.randomUUID()
     const activeOrganizationId = window.sessionStorage.getItem(ACTIVE_ORGANIZATION_KEY)
     const headers = new Headers({
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-        "X-Request-ID": requestId,
-        "X-Correlation-ID": requestId,
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+      "X-Request-ID": requestId,
+      "X-Correlation-ID": requestId,
     })
     if (activeOrganizationId) headers.set("X-Organization-ID", activeOrganizationId)
     const response = await fetch(`${this.options.apiBaseUrl}/me`, {
