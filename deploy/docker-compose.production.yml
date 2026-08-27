@@ -89,9 +89,6 @@ services:
         VITE_BORROWER_URL: https://app.moneybeeloan.com
         VITE_LENDER_URL: https://lenders.moneybeeloan.com
         VITE_ADMIN_URL: https://admin.moneybeeloan.com
-        VITE_OIDC_AUTHORITY: https://auth.codestra.co/realms/codestra
-        VITE_OIDC_CLIENT_ID: moneybee-web
-        VITE_OIDC_AUDIENCE: moneybee-api
     image: moneybee-marketing:${MONEYBEE_RELEASE:-local}
     container_name: moneybee-marketing
 
