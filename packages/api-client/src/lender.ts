@@ -58,11 +58,13 @@ export interface LenderProgramPatch {
 }
 
 export interface LenderSubmissionWorkspace {
+  [key: string]: unknown;
   submission: LenderSubmissionSummary & Record<string, unknown>;
   application: Record<string, unknown>;
   conditions: Array<Record<string, unknown>>;
   bank_analyses: Array<Record<string, unknown>>;
   offers: Array<Record<string, unknown>>;
+  tasks?: PortalTask[];
 }
 
 export interface LenderDecisionCreate {
@@ -100,12 +102,14 @@ export interface BankAnalysisQueueItem {
 }
 
 export interface LenderPortfolio {
+  [key: string]: unknown;
   summary: {
     offer_count: number;
     accepted_or_funded_count: number;
     accepted_or_funded_amount: string;
   };
   positions: Array<Record<string, unknown>>;
+  submission_status_counts?: Record<string, number>;
 }
 
 export function getLenderWorkspace(
@@ -235,7 +239,21 @@ export const lenderPortalApi = {
     };
   },
 
-  portfolio: getLenderPortfolio,
+  async portfolio(organizationId?: string): Promise<LenderPortfolio> {
+    const [portfolio, workspace] = await Promise.all([
+      getLenderPortfolio(organizationId),
+      getLenderWorkspace(organizationId),
+    ]);
+    const submissionStatusCounts = workspace.recent_submissions.reduce<Record<string, number>>(
+      (counts, submission) => {
+        counts[submission.status] = (counts[submission.status] || 0) + 1;
+        return counts;
+      },
+      {},
+    );
+    return { ...portfolio, submission_status_counts: submissionStatusCounts };
+  },
+
   submissionWorkspace: getLenderSubmissionWorkspace,
 
   patchProgram(
