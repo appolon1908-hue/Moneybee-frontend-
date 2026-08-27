@@ -29,6 +29,8 @@ export interface AuthContext {
   navigation: NavigationItem[];
 }
 
+export type PortalContext = AuthContext;
+
 export interface PortalTask {
   id: string;
   tenant_id: string;
@@ -268,5 +270,13 @@ export function createPortalMessage(
     }),
   );
 }
+
+export const portalApi = {
+  context: getAuthContext,
+  navigation: getPortalNavigation,
+  tasks: listPortalTasks,
+  notifications: listPortalNotifications,
+  conversations: listPortalConversations,
+};
 
 export { queryString, withOrganization };
