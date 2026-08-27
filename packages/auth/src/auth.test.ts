@@ -14,7 +14,7 @@ const principal: LocalPrincipal = {
   subject: "subject-1",
   organization_ids: ["org-1"],
   active_organization_id: "org-1",
-  roles: ["BORROWER_USER"],
+  roles: ["BORROWER_SELF_SERVICE"],
   permissions: ["application.read.own"],
   membership_types: ["BORROWER"],
   borrower_id: "org-1",
@@ -28,7 +28,7 @@ describe("authorization helpers", () => {
     expect(hasPermission(principal, "funding.confirm")).toBe(false)
     expect(hasMembership(principal, "BORROWER")).toBe(true)
     expect(hasMembership(principal, "LENDER")).toBe(false)
-    expect(hasRole(principal, "BORROWER_USER")).toBe(true)
+    expect(hasRole(principal, "BORROWER_SELF_SERVICE")).toBe(true)
   })
 
   it("rejects disabled principals", () => {
@@ -67,12 +67,15 @@ function fakeOidcManager(user = {
   access_token: "access-token",
   expired: false,
 }) {
-  const calls = { login: 0, callback: 0, silentCallback: 0, logout: 0, removed: 0 }
+  const calls = { login: 0, prompt: "", callback: 0, silentCallback: 0, logout: 0, removed: 0 }
   return {
     calls,
     port: {
       getUser: async () => user,
-      signinRedirect: async () => { calls.login += 1 },
+      signinRedirect: async (args?: { prompt?: string }) => {
+        calls.login += 1
+        calls.prompt = args?.prompt || ""
+      },
       signinRedirectCallback: async () => {
         calls.callback += 1
         return user
@@ -87,30 +90,55 @@ function fakeOidcManager(user = {
 
 const options = {
   authority: "https://auth.codestra.co/realms/codestra",
-  clientId: "moneybee-web",
+  clientId: "moneybee-borrower",
   apiBaseUrl: "https://api.moneybeeloan.com/api/v2",
   redirectUri: "https://app.moneybeeloan.com/auth/callback",
   postLogoutRedirectUri: "https://app.moneybeeloan.com/auth/login",
 }
 
 describe("OIDC session manager", () => {
-  it("supports login, callback deep links, refresh-safe sessions, and logout", async () => {
+  it("supports login, callback account bootstrap, refresh-safe sessions, and logout", async () => {
+    const storage = memoryStorage()
+    installWindow(storage)
+    const fake = fakeOidcManager()
+    const manager = new MoneyBeeAuthManager(options, fake.port as never)
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("https://api.moneybeeloan.com/api/v2/account/bootstrap")
+      expect(init?.method).toBe("POST")
+      expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer access-token")
+      return new Response(JSON.stringify({ created: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    }) as typeof fetch
+    try {
+      await manager.login("/offers?application=123")
+      expect(storage.getItem(RETURN_TO_KEY)).toBe("/offers?application=123")
+      expect(fake.calls.login).toBe(1)
+      expect(await manager.handleCallback()).toBe("/offers?application=123")
+      expect(fake.calls.callback).toBe(1)
+      await manager.handleSilentCallback()
+      expect(fake.calls.silentCallback).toBe(1)
+      expect(await manager.isAuthenticated()).toBe(true)
+      expect(await manager.getAccessToken()).toBe("access-token")
+      await manager.logout()
+      expect(fake.calls.logout).toBe(1)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it("starts borrower registration with the OIDC prompt=create flow", async () => {
     const storage = memoryStorage()
     installWindow(storage)
     const fake = fakeOidcManager()
     const manager = new MoneyBeeAuthManager(options, fake.port as never)
 
-    await manager.login("/offers?application=123")
-    expect(storage.getItem(RETURN_TO_KEY)).toBe("/offers?application=123")
+    await manager.register("/application")
+    expect(storage.getItem(RETURN_TO_KEY)).toBe("/application")
     expect(fake.calls.login).toBe(1)
-    expect(await manager.handleCallback()).toBe("/offers?application=123")
-    expect(fake.calls.callback).toBe(1)
-    await manager.handleSilentCallback()
-    expect(fake.calls.silentCallback).toBe(1)
-    expect(await manager.isAuthenticated()).toBe(true)
-    expect(await manager.getAccessToken()).toBe("access-token")
-    await manager.logout()
-    expect(fake.calls.logout).toBe(1)
+    expect(fake.calls.prompt).toBe("create")
   })
 
   it("sends tenant selection and parses stable backend identity errors", async () => {
