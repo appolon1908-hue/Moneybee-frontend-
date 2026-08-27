@@ -1,4 +1,4 @@
-name: Design System Guard
+name: MoneyBee Frontend Quality Gate
 
 on:
   pull_request:
@@ -7,6 +7,8 @@ on:
       - 'packages/**'
       - 'scripts/check-design-system.mjs'
       - 'docs/DESIGN_SYSTEM.md'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
       - '.github/workflows/design-system.yml'
   push:
     branches:
@@ -16,21 +18,41 @@ on:
       - 'packages/**'
       - 'scripts/check-design-system.mjs'
       - 'docs/DESIGN_SYSTEM.md'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
 
 permissions:
   contents: read
 
 jobs:
-  design-system:
+  frontend-quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '10.15.0'
+          run_install: false
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Install workspace dependencies
+        run: pnpm install --no-frozen-lockfile
+
       - name: Enforce MoneyBee design system
-        run: node scripts/check-design-system.mjs
+        run: pnpm test:design
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Production build
+        run: pnpm build
