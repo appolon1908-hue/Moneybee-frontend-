@@ -6,14 +6,17 @@ import { landingPages } from "../landingPages"
 const props = defineProps<{slug: string}>()
 const page = computed(() => landingPages[props.slug] || landingPages["business-loans"])
 const borrowerUrl = import.meta.env.VITE_BORROWER_URL || "http://localhost:5174"
-const borrowerLoginUrl = computed(() => `${borrowerUrl.replace(/\/$/, "")}/auth/login`)
+const borrowerOrigin = computed(() => borrowerUrl.replace(/\/$/, ""))
+const borrowerLoginUrl = computed(() => `${borrowerOrigin.value}/auth/login`)
+const borrowerRegistrationUrl = computed(() => `${borrowerOrigin.value}/auth/register`)
 </script>
 
 <template>
   <header class="container topbar">
     <a class="brand" href="/"><span class="mark">MB</span> MoneyBeeLoans</a>
     <nav aria-label="Primary"><a href="#how">How it works</a><a href="#uses">Uses</a><a href="#faq">FAQ</a>
-      <a class="button" :href="borrowerLoginUrl">Login</a>
+      <a :href="borrowerLoginUrl">Login</a>
+      <a class="button" :href="borrowerRegistrationUrl">Create account</a>
     </nav>
   </header>
   <main>
@@ -23,6 +26,7 @@ const borrowerLoginUrl = computed(() => `${borrowerUrl.replace(/\/$/, "")}/auth/
         <h1>{{ page.title }}</h1>
         <p class="lede">{{ page.description }}</p>
         <p class="muted">Secure application · Multiple financing options · Human funding specialists</p>
+        <p><a class="button" :href="borrowerRegistrationUrl">Create your secure MoneyBee account</a></p>
       </div>
       <PrequalForm :landing-page="slug" />
     </section>
