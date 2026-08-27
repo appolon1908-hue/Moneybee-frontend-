@@ -31,6 +31,10 @@ export const AuthRouteView = defineComponent({
           status.value = "Redirecting to secure sign in…"
           await auth.login(safeReturnTo(route.query.returnTo))
         } else if (action === "register") {
+          if (!auth.canSelfRegister()) {
+            status.value = "Public registration is available only from the MoneyBee borrower portal."
+            return
+          }
           status.value = "Opening secure account registration…"
           await auth.register(safeReturnTo(route.query.returnTo))
         } else if (action === "callback") {
@@ -62,7 +66,7 @@ export const AuthRouteView = defineComponent({
         (action === "session-expired" || action === "forbidden")
           ? h("a", { href: `/auth/login?returnTo=${encodeURIComponent(safeReturnTo(route.query.returnTo))}` }, "Sign in")
           : null,
-        action === "login"
+        action === "login" && auth?.canSelfRegister()
           ? h("a", { href: `/auth/register?returnTo=${encodeURIComponent(safeReturnTo(route.query.returnTo))}` }, "Create account")
           : null,
         action === "register"
