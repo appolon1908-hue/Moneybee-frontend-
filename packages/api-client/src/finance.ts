@@ -37,6 +37,20 @@ export interface JournalPostingInput {
   metadata_payload?: Record<string, unknown>
 }
 
+export interface JournalPosting {
+  id: string
+  journal_entry_id: string
+  account_id: string
+  side: PostingSide
+  amount: string
+  currency: string
+  application_id: string | null
+  funding_id: string | null
+  commission_id: string | null
+  bank_transaction_id: string | null
+  memo: string | null
+}
+
 export interface JournalEntryInput {
   organization_id?: string
   idempotency_key: string
@@ -86,13 +100,28 @@ export interface TrialBalance {
   accounts: TrialBalanceLine[]
 }
 
-function query(organizationId?: string): string {
-  return organizationId ? `?organization_id=${encodeURIComponent(organizationId)}` : ""
+export interface JournalListOptions {
+  currency?: string
+  limit?: number
+}
+
+export interface TrialBalanceOptions {
+  currency?: string
+  asOf?: string
+}
+
+function query(values: Record<string, string | number | undefined>): string {
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== undefined && value !== "") params.set(key, String(value))
+  }
+  const encoded = params.toString()
+  return encoded ? `?${encoded}` : ""
 }
 
 export const financeApi = {
-  accounts(organizationId?: string): Promise<LedgerAccount[]> {
-    return api(`/finance/accounts${query(organizationId)}`)
+  accounts(organizationId?: string, currency?: string): Promise<LedgerAccount[]> {
+    return api(`/finance/accounts${query({ organization_id: organizationId, currency })}`)
   },
 
   createAccount(input: {
@@ -106,7 +135,7 @@ export const financeApi = {
   },
 
   periods(organizationId?: string): Promise<AccountingPeriod[]> {
-    return api(`/finance/periods${query(organizationId)}`)
+    return api(`/finance/periods${query({ organization_id: organizationId })}`)
   },
 
   createPeriod(input: {
@@ -119,11 +148,22 @@ export const financeApi = {
   },
 
   closePeriod(periodId: string): Promise<AccountingPeriod> {
-    return api(`/finance/periods/${periodId}/close`, { method: "POST" })
+    return api(`/finance/periods/${encodeURIComponent(periodId)}/close`, { method: "POST" })
   },
 
-  journalEntries(organizationId?: string): Promise<JournalEntry[]> {
-    return api(`/finance/journal-entries${query(organizationId)}`)
+  journalEntries(
+    organizationId?: string,
+    options: JournalListOptions = {},
+  ): Promise<JournalEntry[]> {
+    return api(`/finance/journal-entries${query({
+      organization_id: organizationId,
+      currency: options.currency,
+      limit: options.limit,
+    })}`)
+  },
+
+  journalPostings(entryId: string): Promise<JournalPosting[]> {
+    return api(`/finance/journal-entries/${encodeURIComponent(entryId)}/postings`)
   },
 
   postJournal(input: JournalEntryInput): Promise<JournalEntry> {
@@ -134,7 +174,14 @@ export const financeApi = {
     })
   },
 
-  trialBalance(organizationId?: string): Promise<TrialBalance> {
-    return api(`/finance/trial-balance${query(organizationId)}`)
+  trialBalance(
+    organizationId?: string,
+    options: TrialBalanceOptions = {},
+  ): Promise<TrialBalance> {
+    return api(`/finance/trial-balance${query({
+      organization_id: organizationId,
+      currency: options.currency,
+      as_of: options.asOf,
+    })}`)
   },
 }
