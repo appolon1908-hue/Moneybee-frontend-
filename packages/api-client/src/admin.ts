@@ -118,9 +118,10 @@ export interface WebhookReceipt {
   processed_at: string | null;
   created_at: string;
   updated_at: string;
+  attempts?: number;
 }
 
-export interface IntegrationControlPlane {
+export interface IntegrationControlPlane extends Record<string, unknown> {
   authority: string;
   middleware: string;
   crm_projection: string;
@@ -134,7 +135,7 @@ export interface IntegrationControlPlane {
   }>;
 }
 
-export interface AuditEvent {
+export interface AuditEvent extends Record<string, unknown> {
   id: string;
   actor_id: string;
   action: string;
@@ -350,7 +351,9 @@ export async function listAdminAuditEvents(
 }
 
 export const adminPortalApi = {
-  workspace: getAdminOperationsWorkspace,
+  workspace(organizationId?: string | null): Promise<AdminOperationsWorkspace> {
+    return getAdminOperationsWorkspace(organizationId ?? undefined);
+  },
   workQueue: listAdminTasks,
   patchWorkItem(
     taskId: string,
