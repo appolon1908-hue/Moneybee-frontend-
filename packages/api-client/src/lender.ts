@@ -112,6 +112,12 @@ export interface LenderPortfolio {
   submission_status_counts?: Record<string, number>;
 }
 
+type OrganizationSelection = string | null | undefined;
+
+function selectedOrganization(value: OrganizationSelection): string | undefined {
+  return value || undefined;
+}
+
 export function getLenderWorkspace(
   organizationId?: string,
 ): Promise<Omit<LenderWorkspace, "programs" | "submissions" | "offers">> {
@@ -207,11 +213,12 @@ export function getLenderPortfolio(
 }
 
 export const lenderPortalApi = {
-  async workspace(organizationId?: string): Promise<LenderWorkspace> {
+  async workspace(organizationId?: string | null): Promise<LenderWorkspace> {
+    const selected = selectedOrganization(organizationId);
     const [workspace, programs, portfolio] = await Promise.all([
-      getLenderWorkspace(organizationId),
-      listLenderPrograms(undefined, organizationId),
-      getLenderPortfolio(organizationId),
+      getLenderWorkspace(selected),
+      listLenderPrograms(undefined, selected),
+      getLenderPortfolio(selected),
     ]);
     return {
       ...workspace,
@@ -227,8 +234,13 @@ export const lenderPortalApi = {
     };
   },
 
-  async bankAnalysisQueue(organizationId?: string): Promise<{items: Array<Record<string, unknown>>}> {
-    const queue = await listBankAnalysisQueue(undefined, organizationId);
+  async bankAnalysisQueue(
+    organizationId?: string | null,
+  ): Promise<{items: Array<Record<string, unknown>>}> {
+    const queue = await listBankAnalysisQueue(
+      undefined,
+      selectedOrganization(organizationId),
+    );
     return {
       items: queue.map(({ submission, analysis }) => ({
         ...analysis,
@@ -239,10 +251,11 @@ export const lenderPortalApi = {
     };
   },
 
-  async portfolio(organizationId?: string): Promise<LenderPortfolio> {
+  async portfolio(organizationId?: string | null): Promise<LenderPortfolio> {
+    const selected = selectedOrganization(organizationId);
     const [portfolio, workspace] = await Promise.all([
-      getLenderPortfolio(organizationId),
-      getLenderWorkspace(organizationId),
+      getLenderPortfolio(selected),
+      getLenderWorkspace(selected),
     ]);
     const submissionStatusCounts = workspace.recent_submissions.reduce<Record<string, number>>(
       (counts, submission) => {
