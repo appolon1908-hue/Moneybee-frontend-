@@ -38,7 +38,7 @@ async function load(): Promise<void> {
   error.value = "";
   try {
     const context = await getAuthContext();
-    organizationId.value = context.active_organization_id;
+    organizationId.value = context.active_organization_id ?? "";
     workspace.value = await getBorrowerWorkspace(organizationId.value);
     selectedApplicationId.value =
       selectedApplicationId.value || applications.value[0]?.id || "";

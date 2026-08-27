@@ -30,7 +30,7 @@ async function load(): Promise<void> {
   error.value = "";
   try {
     const context = await getAuthContext();
-    organizationId.value = context.active_organization_id;
+    organizationId.value = context.active_organization_id ?? "";
     tasks.value = await listPortalTasks(
       { assigned_to_me: true, limit: 250 },
       organizationId.value,
