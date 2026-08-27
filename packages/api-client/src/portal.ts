@@ -5,46 +5,66 @@ export type PortalTaskStatus =
   | "IN_PROGRESS"
   | "BLOCKED"
   | "COMPLETED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "DISMISSED";
 
 export type PortalTaskPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
 
 export interface NavigationItem {
   key: string;
   label: string;
-  href: string;
-  portal: "borrower" | "lender" | "admin" | "shared";
+  href?: string;
+  path?: string;
+  portal?: "borrower" | "lender" | "admin" | "shared";
+  group?: string;
+  required_permission?: string | null;
+}
+
+export interface PortalOrganization {
+  id: string;
+  name: string;
+  organization_type: string;
 }
 
 export interface AuthContext {
   user_id: string;
   subject: string;
-  active_organization_id: string;
-  organization_ids: string[];
+  active_organization_id: string | null;
+  organizations?: PortalOrganization[];
+  organization_ids?: string[];
   roles: string[];
   permissions: string[];
   membership_types: string[];
-  borrower_id: string | null;
-  lender_id: string | null;
-  navigation: NavigationItem[];
+  portal?: "BORROWER" | "LENDER" | "ADMIN" | "AFFILIATE" | "UNKNOWN";
+  capabilities?: Record<string, boolean>;
+  borrower_id?: string | null;
+  lender_id?: string | null;
+  navigation?: NavigationItem[];
 }
 
 export type PortalContext = AuthContext;
 
 export interface PortalTask {
   id: string;
-  tenant_id: string;
   application_id: string | null;
+  organization_id?: string | null;
+  tenant_id?: string;
+  assignee_user_id?: string | null;
+  assignee_subject?: string | null;
+  assigned_to_subject?: string | null;
   task_type: string;
   title: string;
   description: string | null;
-  status: PortalTaskStatus;
+  // The backend read model intentionally treats task status as data so newer
+  // server statuses remain readable. Mutation payloads stay constrained below.
+  status: string;
   priority: PortalTaskPriority;
-  assigned_to_subject: string | null;
-  created_by_subject: string;
+  created_by_subject?: string;
   due_at: string | null;
   completed_at: string | null;
-  version: number;
+  source_type?: string | null;
+  source_reference?: string | null;
+  version?: number;
   metadata_payload: Record<string, unknown>;
   created_at: string;
   updated_at: string;
@@ -52,20 +72,27 @@ export interface PortalTask {
 
 export interface PortalTaskCreate {
   application_id?: string | null;
+  organization_id?: string | null;
+  assignee_user_id?: string | null;
+  assignee_subject?: string | null;
   task_type?: string;
   title: string;
   description?: string | null;
   priority?: PortalTaskPriority;
   assigned_to_subject?: string | null;
   due_at?: string | null;
+  source_type?: string | null;
+  source_reference?: string | null;
   metadata_payload?: Record<string, unknown>;
 }
 
 export interface PortalTaskUpdate {
-  expected_version: number;
+  expected_version?: number;
   status?: PortalTaskStatus;
   priority?: PortalTaskPriority;
   assigned_to_subject?: string | null;
+  assignee_subject?: string | null;
+  assignee_user_id?: string | null;
   due_at?: string | null;
   description?: string | null;
 }
