@@ -13,6 +13,16 @@ Forbidden runtime/redirect domains:
 
 Do not create or use `auth.moneybeeloan.com`.
 
+## Marketing site
+
+The marketing application at `https://moneybeeloan.com` does **not** own a Keycloak browser client and must not use `moneybee-web`.
+
+Its Login CTA hands off to the borrower portal at:
+
+`https://app.moneybeeloan.com/auth/login`
+
+Authentication begins there under the reviewed `moneybee-borrower` client, so the callback and silent-renew URLs remain on the borrower origin.
+
 ## Borrower
 
 - Public PKCE client: `moneybee-borrower`
@@ -41,5 +51,7 @@ Do not create or use `auth.moneybeeloan.com`.
 - Web origin: `https://admin.moneybeeloan.com`
 
 All clients must use Authorization Code flow with PKCE S256. Implicit flow, Direct Access Grants, Service Accounts, wildcard redirects, and client-secret-dependent browser authentication are prohibited.
+
+All three authenticated portals request access tokens for API audience `moneybee-api`.
 
 The matching Keycloak GitOps contract is maintained in the `appolon1908-hue/Keycloak` repository at `config/identity/moneybee-oidc-clients.json`.
