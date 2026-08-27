@@ -11,6 +11,7 @@
         <RouterLink to="/submissions">Submissions</RouterLink>
         <RouterLink to="/offers">Offers</RouterLink>
         <RouterLink to="/underwriting">Underwriting</RouterLink>
+        <RouterLink to="/finance">Finance</RouterLink>
         <RouterLink to="/sla-alerts">SLA alerts</RouterLink>
         <RouterLink to="/users">Users</RouterLink>
         <RouterLink to="/operations">Lifecycle operations</RouterLink>

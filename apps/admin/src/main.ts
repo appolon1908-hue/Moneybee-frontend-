@@ -2,12 +2,14 @@ import { createApp } from "vue"
 import { createPinia } from "pinia"
 import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query"
 import {
+  ACTIVE_ORGANIZATION_KEY,
   AUTH_MANAGER,
   createAuthManager,
   installPortalGuard,
 } from "@moneybee/auth"
 import {
   configureAccessTokenProvider,
+  configureOrganizationIdProvider,
   configureUnauthorizedHandler,
 } from "@moneybee/api-client"
 import "@moneybee/ui/styles.css"
@@ -17,6 +19,7 @@ import router from "./router"
 const app = createApp(App)
 const auth = createAuthManager()
 configureAccessTokenProvider(() => auth.getAccessToken())
+configureOrganizationIdProvider(() => window.sessionStorage.getItem(ACTIVE_ORGANIZATION_KEY))
 configureUnauthorizedHandler(async () => Boolean(await auth.refreshSession()))
 installPortalGuard(router, auth, {
   membershipType: "MONEYBEE",
