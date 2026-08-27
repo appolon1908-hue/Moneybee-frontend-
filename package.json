@@ -1,0 +1,20 @@
+{
+  "name": "moneybee-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.15.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @moneybee/marketing dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test:design": "node scripts/check-design-system.mjs",
+    "check": "pnpm test:design && pnpm typecheck && pnpm build"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3",
+    "vue-tsc": "2.2.0"
+  }
+}

@@ -1,0 +1,7 @@
+# MoneyBee frontend ownership
+* @appolon1908-hue
+
+# Design primitives and governance require explicit review.
+/packages/design-system/ @appolon1908-hue
+/scripts/check-design-system.mjs @appolon1908-hue
+/docs/DESIGN_SYSTEM.md @appolon1908-hue

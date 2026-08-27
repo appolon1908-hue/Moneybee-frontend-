@@ -1,0 +1,36 @@
+name: Design System Guard
+
+on:
+  pull_request:
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'scripts/check-design-system.mjs'
+      - 'docs/DESIGN_SYSTEM.md'
+      - '.github/workflows/design-system.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'scripts/check-design-system.mjs'
+      - 'docs/DESIGN_SYSTEM.md'
+
+permissions:
+  contents: read
+
+jobs:
+  design-system:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enforce MoneyBee design system
+        run: node scripts/check-design-system.mjs
