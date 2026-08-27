@@ -84,13 +84,17 @@ export class MoneyBeeAuthManager {
     private readonly manager: UserManagerPort = new UserManager(oidcSettings(options)),
   ) {}
 
+  canSelfRegister(): boolean {
+    return this.options.clientId === "moneybee-borrower"
+  }
+
   async login(returnTo = "/dashboard"): Promise<void> {
     window.sessionStorage.setItem(RETURN_TO_KEY, safeReturnTo(returnTo))
     await this.manager.signinRedirect()
   }
 
   async register(returnTo = "/dashboard"): Promise<void> {
-    if (this.options.clientId !== "moneybee-borrower") {
+    if (!this.canSelfRegister()) {
       throw new AuthConfigurationError("Public registration is available only for the borrower portal.")
     }
     window.sessionStorage.setItem(RETURN_TO_KEY, safeReturnTo(returnTo))
