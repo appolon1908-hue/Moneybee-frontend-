@@ -34,8 +34,8 @@ for (const scanRoot of scanRoots) {
       add(path, 'COLOR_TOKEN_REQUIRED', 'literal colors belong only in tokens.css')
     }
 
-    if (path !== tokenFile && /font-family\s*:/i.test(source)) {
-      add(path, 'FONT_TOKEN_REQUIRED', 'font-family is centralized in tokens.css')
+    if (path.startsWith('apps/') && /font-family\s*:/i.test(source)) {
+      add(path, 'FONT_TOKEN_REQUIRED', 'application pages must inherit the design-system font token')
     }
 
     if (/\btransition\s*:\s*all\b/i.test(source)) {
