@@ -4,6 +4,7 @@ import CapabilityView from "./views/CapabilityView.vue"
 import CRMView from "./views/CRMView.vue"
 import CrmDeliveriesView from "./views/CrmDeliveriesView.vue"
 import DashboardView from "./views/DashboardView.vue"
+import FinanceView from "./views/FinanceView.vue"
 import OperationsView from "./views/OperationsView.vue"
 import PublicIntakesView from "./views/PublicIntakesView.vue"
 import ResourceView from "./views/ResourceView.vue"
@@ -55,6 +56,7 @@ export default createRouter({
       component: ResourceView,
       props: { title: "Underwriting reviews", endpoint: "/admin/underwriting/reviews", description: "Authoritative manual decisions with policy and reason codes." },
     },
+    {path: "/finance", component: FinanceView, meta: { requiresAuth: true, title: "Financial ledger" }},
     {
       path: "/sla-alerts",
       component: ResourceView,

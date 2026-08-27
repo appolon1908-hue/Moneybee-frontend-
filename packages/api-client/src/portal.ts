@@ -237,21 +237,8 @@ export function listPortalTasks(
   organizationId?: string,
 ): Promise<PortalTask[]> {
   return api<PortalTask[]>(
-    `/portal/tasks${queryString(query)}`,
+    `/borrower/tasks${queryString(query)}`,
     withOrganization(organizationId),
-  );
-}
-
-export function createPortalTask(
-  payload: PortalTaskCreate,
-  organizationId?: string,
-): Promise<PortalTask> {
-  return api<PortalTask>(
-    "/portal/tasks",
-    withOrganization(organizationId, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
   );
 }
 
@@ -261,7 +248,7 @@ export function updatePortalTask(
   organizationId?: string,
 ): Promise<PortalTask> {
   return api<PortalTask>(
-    `/portal/tasks/${encodeURIComponent(taskId)}`,
+    `/borrower/tasks/${encodeURIComponent(taskId)}`,
     withOrganization(organizationId, {
       method: "PATCH",
       body: JSON.stringify(payload),
@@ -274,7 +261,7 @@ export function listPortalNotifications(
   organizationId?: string,
 ): Promise<PortalNotification[]> {
   return api<PortalNotification[]>(
-    `/portal/notifications${queryString({ unread_only: unreadOnly })}`,
+    `/borrower/notifications${queryString({ unread_only: unreadOnly })}`,
     withOrganization(organizationId),
   );
 }
@@ -284,7 +271,7 @@ export function markPortalNotificationRead(
   organizationId?: string,
 ): Promise<PortalNotification> {
   return api<PortalNotification>(
-    `/portal/notifications/${encodeURIComponent(notificationId)}/read`,
+    `/borrower/notifications/${encodeURIComponent(notificationId)}/read`,
     withOrganization(organizationId, { method: "POST" }),
   );
 }
@@ -294,7 +281,7 @@ export function listPortalConversations(
   organizationId?: string,
 ): Promise<PortalConversation[]> {
   return api<PortalConversation[]>(
-    `/portal/conversations${queryString({ status })}`,
+    `/borrower/conversations${queryString({ status })}`,
     withOrganization(organizationId),
   );
 }
@@ -304,7 +291,7 @@ export function createPortalConversation(
   organizationId?: string,
 ): Promise<PortalConversation> {
   return api<PortalConversation>(
-    "/portal/conversations",
+    "/borrower/conversations",
     withOrganization(organizationId, {
       method: "POST",
       body: JSON.stringify(payload),
@@ -317,7 +304,7 @@ export function listPortalMessages(
   organizationId?: string,
 ): Promise<PortalMessage[]> {
   return api<PortalMessage[]>(
-    `/portal/conversations/${encodeURIComponent(conversationId)}/messages`,
+    `/borrower/conversations/${encodeURIComponent(conversationId)}/messages`,
     withOrganization(organizationId),
   );
 }
@@ -328,7 +315,7 @@ export function createPortalMessage(
   organizationId?: string,
 ): Promise<PortalMessage> {
   return api<PortalMessage>(
-    `/portal/conversations/${encodeURIComponent(conversationId)}/messages`,
+    `/borrower/conversations/${encodeURIComponent(conversationId)}/messages`,
     withOrganization(organizationId, {
       method: "POST",
       body: JSON.stringify(payload),

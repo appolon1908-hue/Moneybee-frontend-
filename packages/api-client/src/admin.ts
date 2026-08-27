@@ -1,6 +1,5 @@
 import { api } from "./core";
 import {
-  getAuthContext,
   queryString,
   withOrganization,
   type PortalTask,
@@ -21,22 +20,6 @@ export interface AdminOperationsWorkspace {
   metrics: Record<string, number>;
   work_queue: PortalTask[];
   operational_exceptions: Array<Record<string, unknown>>;
-}
-
-interface AdminOverviewWire {
-  leads: number;
-  applications: number;
-  applications_by_status: Record<string, number>;
-  submissions_needing_review: number;
-  open_tasks: number;
-  overdue_tasks: number;
-  unread_notifications: number;
-  open_conversations: number;
-  open_complaints: number;
-  open_operational_exceptions: number;
-  pending_outbox: number;
-  failed_integrations: number;
-  webhook_receipts_pending: number;
 }
 
 interface AdminTaskWire {
@@ -264,40 +247,11 @@ export interface CrmDeliverySummary {
 export async function getAdminOperationsWorkspace(
   organizationId?: string,
 ): Promise<AdminOperationsWorkspace> {
-  const options = withOrganization(organizationId);
-  const [overview, queue, exceptions, context] = await Promise.all([
-    api<AdminOverviewWire>("/admin/overview", options),
-    listAdminTasks({ limit: 100 }, organizationId),
-    api<Array<Record<string, unknown>>>(
-      "/admin/operational-exceptions?status=OPEN&limit=100",
-      options,
-    ),
-    getAuthContext(organizationId),
-  ]);
-  return {
-    principal: {
-      global_scope:
-        context.permissions.includes("*") ||
-        context.membership_types.includes("MONEYBEE"),
-    },
-    metrics: {
-      lead_count: overview.leads,
-      application_count: overview.applications,
-      lender_submission_count: overview.submissions_needing_review,
-      open_task_count: overview.open_tasks,
-      overdue_task_count: overview.overdue_tasks,
-      unread_notification_count: overview.unread_notifications,
-      open_conversation_count: overview.open_conversations,
-      open_complaint_count: overview.open_complaints,
-      open_operational_exception_count: overview.open_operational_exceptions,
-      pending_outbox_count: overview.pending_outbox,
-      failed_integration_count: overview.failed_integrations,
-      webhook_receipts_pending: overview.webhook_receipts_pending,
-      ...overview.applications_by_status,
-    },
-    work_queue: queue.items,
-    operational_exceptions: exceptions,
-  };
+  const wire = await api<AdminOperationsWorkspace & { work_queue: AdminTaskWire[] }>(
+    "/admin/workspace",
+    withOrganization(organizationId),
+  );
+  return { ...wire, work_queue: wire.work_queue.map(normalizeTask) };
 }
 
 export async function listAdminTasks(

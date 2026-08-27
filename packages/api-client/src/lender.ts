@@ -159,7 +159,7 @@ export function recordLenderDecision(
   organizationId?: string | null,
 ): Promise<LenderDecisionResult> {
   return api<LenderDecisionResult>(
-    `/lender/submissions/${encodeURIComponent(submissionId)}/decision`,
+    `/lender/submissions/${encodeURIComponent(submissionId)}/decisions`,
     withOrganization(organizationId, {
       method: "POST",
       idempotencyKey,
@@ -173,7 +173,7 @@ export function listBankAnalysisQueue(
   organizationId?: string | null,
 ): Promise<BankAnalysisQueueItem[]> {
   return api<BankAnalysisQueueItem[]>(
-    `/lender/bank-analysis-queue${queryString({ status })}`,
+    `/lender/bank-review-queue${queryString({ status })}`,
     withOrganization(organizationId),
   );
 }
