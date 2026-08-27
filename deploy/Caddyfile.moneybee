@@ -1,0 +1,37 @@
+# MoneyBee edge routes.
+# Import this file from the server's active Caddyfile only after all upstreams
+# are healthy on the moneybee-edge Docker network.
+
+moneybeeloan.com {
+    encode zstd gzip
+    reverse_proxy moneybee-marketing:80
+}
+
+www.moneybeeloan.com {
+    redir https://moneybeeloan.com{uri} permanent
+}
+
+app.moneybeeloan.com {
+    encode zstd gzip
+    reverse_proxy moneybee-borrower:80
+}
+
+lenders.moneybeeloan.com {
+    encode zstd gzip
+    reverse_proxy moneybee-lender:80
+}
+
+# Compatibility redirect while the historical singular DNS record exists.
+lender.moneybeeloan.com {
+    redir https://lenders.moneybeeloan.com{uri} permanent
+}
+
+admin.moneybeeloan.com {
+    encode zstd gzip
+    reverse_proxy moneybee-admin:80
+}
+
+api.moneybeeloan.com {
+    encode zstd gzip
+    reverse_proxy moneybee-api:8000
+}
