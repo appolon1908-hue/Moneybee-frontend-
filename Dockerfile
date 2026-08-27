@@ -36,7 +36,11 @@ LABEL org.opencontainers.image.source="https://github.com/appolon1908-hue/Moneyb
       org.opencontainers.image.revision="${SOURCE_SHA}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       io.moneybee.portal="${APP}"
-RUN rm -f /etc/nginx/conf.d/default.conf \
+# Upgrade the runtime packages before copying application assets so the image
+# consumes fixed Alpine packages even when an upstream mutable tag lags behind.
+# Release workflows still require the approved base-image digest.
+RUN apk upgrade --no-cache \
+    && rm -f /etc/nginx/conf.d/default.conf \
     && mkdir -p /tmp/nginx/client_temp /tmp/nginx/proxy_temp /tmp/nginx/fastcgi_temp /tmp/nginx/uwsgi_temp /tmp/nginx/scgi_temp \
     && chown -R nginx:nginx /tmp/nginx /var/cache/nginx /usr/share/nginx/html
 COPY nginx-main.conf /etc/nginx/nginx.conf
