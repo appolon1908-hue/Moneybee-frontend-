@@ -12,10 +12,15 @@ export interface PortalGuard {
 export function authRoutes(): RouteRecordRaw[] {
   return [
     { path: "/auth/login", component: AuthRouteView, meta: { authAction: "login", public: true } },
+    { path: "/auth/register", component: AuthRouteView, meta: { authAction: "register", public: true } },
+    { path: "/auth/forgot-password", component: AuthRouteView, meta: { authAction: "forgot-password", public: true } },
+    { path: "/auth/verify-email", component: AuthRouteView, meta: { authAction: "verify-email", public: true } },
     { path: "/auth/callback", component: AuthRouteView, meta: { authAction: "callback", public: true } },
     { path: "/auth/silent-callback", component: AuthRouteView, meta: { authAction: "silent-callback", public: true } },
     { path: "/auth/logout", component: AuthRouteView, meta: { authAction: "logout", public: true } },
     { path: "/auth/session-expired", component: AuthRouteView, meta: { authAction: "session-expired", public: true } },
+    { path: "/auth/change-password", component: AuthRouteView, meta: { authAction: "change-password" } },
+    { path: "/auth/account", component: AuthRouteView, meta: { authAction: "account" } },
     { path: "/403", component: AuthRouteView, meta: { authAction: "forbidden", public: true } },
   ]
 }
