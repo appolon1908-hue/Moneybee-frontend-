@@ -30,8 +30,11 @@ export const AuthRouteView = defineComponent({
         if (action === "login") {
           status.value = "Redirecting to secure sign in…"
           await auth.login(safeReturnTo(route.query.returnTo))
+        } else if (action === "register") {
+          status.value = "Opening secure account registration…"
+          await auth.register(safeReturnTo(route.query.returnTo))
         } else if (action === "callback") {
-          status.value = "Completing secure sign in…"
+          status.value = "Completing secure sign in and preparing your MoneyBee account…"
           await router.replace(await auth.handleCallback())
         } else if (action === "silent-callback") {
           status.value = "Refreshing secure session…"
@@ -45,17 +48,25 @@ export const AuthRouteView = defineComponent({
           status.value = "You do not have permission to access this page."
         }
       } catch {
-        status.value = "The secure session could not be completed. Please sign in again."
+        status.value = action === "register"
+          ? "Account registration could not be started. Please try again."
+          : "The secure session could not be completed. Please sign in again."
       }
     })
 
     return () => h("main", { class: "auth-shell" }, [
       h("section", { class: "auth-card" }, [
         h("div", { class: "brand" }, "MoneyBee"),
-        h("h1", action === "forbidden" ? "Access denied" : "Secure account"),
+        h("h1", action === "forbidden" ? "Access denied" : action === "register" ? "Create your account" : "Secure account"),
         h("p", status.value),
         (action === "session-expired" || action === "forbidden")
           ? h("a", { href: `/auth/login?returnTo=${encodeURIComponent(safeReturnTo(route.query.returnTo))}` }, "Sign in")
+          : null,
+        action === "login"
+          ? h("a", { href: `/auth/register?returnTo=${encodeURIComponent(safeReturnTo(route.query.returnTo))}` }, "Create account")
+          : null,
+        action === "register"
+          ? h("a", { href: `/auth/login?returnTo=${encodeURIComponent(safeReturnTo(route.query.returnTo))}` }, "Already have an account? Sign in")
           : null,
       ]),
     ])
