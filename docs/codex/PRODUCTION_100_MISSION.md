@@ -29,6 +29,11 @@ see Phase 5.
 
 ## Phase 1 — Production hardening (from the system review, code-only, low risk)
 
+**Status: closed.** All 5 items landed as code, verified with the repo's
+actual local checks (typecheck/test/contracts/build) before each push, not
+just claimed. One follow-up recorded above (remaining `.replaceAll`
+call-sites), not hidden.
+
 - [x] Content-Security-Policy at the edge (`deploy/Caddyfile.moneybee`) or
       per-app (`nginx.conf`) — top XSS/token-theft mitigation, currently
       absent end-to-end — landed per-app via `nginx-security-headers.conf`
@@ -52,9 +57,20 @@ see Phase 5.
       importable under vitest without a real browser History object) also
       switched each app from one large bundle to per-route code-splitting
       — confirmed in build output.
-- [ ] Real shared component set in `packages/ui` (currently one CSS file)
-      — Button, Input, Table, StatusBadge, Card, form-field wrapper at
-      minimum, consumed by all four apps
+- [x] Real shared component set in `packages/ui` (was one CSS file) —
+      pass: `0d67ed0`. `BaseButton`/`BaseCard` plus `StatusBadge` built on
+      two extracted, tested pure functions (`humanize`, `statusTone`)
+      after finding 8 views independently reimplementing the same
+      SNAKE_CASE-to-readable-text logic with zero status color-coding
+      anywhere. Adopted in one real view per portal (borrower
+      Conditions+Dashboard, admin Operations, lender Submissions) to
+      prove it end-to-end rather than shipping unused. **Follow-up, not
+      done**: the other ~5 files still inlining `.replaceAll("_", " ")`
+      (grep for it) should migrate to `humanize()`/`StatusBadge` too, and
+      the component set itself is intentionally minimal — a real Table/
+      Input component is still worth adding once a second real usage
+      pattern shows up (ResourceView.vue's table is the next obvious
+      candidate).
 - [ ] Confirm `pnpm contracts:check` and the backend's
       `verify_openapi_contract.py` are *required* status checks on their
       respective default branches, not merely present workflows
