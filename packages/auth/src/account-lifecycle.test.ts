@@ -124,6 +124,51 @@ describe("MoneyBee account lifecycle", () => {
     }
   })
 
+  it("bootstraps existing invited lender identities after the OIDC callback", async () => {
+    const storage = memoryStorage()
+    installWindow(storage)
+    storage.setItem(RETURN_TO_KEY, "/submissions")
+    const fake = fakePort({
+      access_token: "lender-token",
+      expired: false,
+      profile: { sub: "lender-subject-1" },
+    })
+    const manager = new MoneyBeeAuthManager({
+      ...borrowerOptions(),
+      clientId: "moneybee-lender",
+      selfRegistrationEnabled: false,
+    }, fake.port as never)
+
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("https://api.moneybeeloan.com/api/v2/auth/bootstrap")
+      const headers = new Headers(init?.headers)
+      expect(init?.method).toBe("POST")
+      expect(headers.get("Authorization")).toBe("Bearer lender-token")
+      expect(headers.get("Idempotency-Key")).toBeTruthy()
+      return new Response(JSON.stringify({
+        created: false,
+        user_id: "lender-user-1",
+        organization_id: "lender-org-1",
+        username: "lender",
+        email: "lender@example.test",
+        email_verified: true,
+        membership_type: "LENDER",
+        registration_source: "KEYCLOAK_PASSWORD",
+        welcome_event_status: "EXISTING",
+        request_id: "request-lender-1",
+      }), { status: 200, headers: { "Content-Type": "application/json" } })
+    }) as typeof fetch
+
+    try {
+      expect(await manager.handleCallback()).toBe("/submissions")
+      expect(storage.getItem(ACTIVE_ORGANIZATION_KEY)).toBe("lender-org-1")
+      expect(storage.getItem(RETURN_TO_KEY)).toBeNull()
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
   it("starts password change, email verification and recovery in Keycloak", async () => {
     installWindow(memoryStorage())
 

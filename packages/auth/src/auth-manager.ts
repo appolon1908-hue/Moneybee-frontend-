@@ -234,11 +234,7 @@ export class MoneyBeeAuthManager {
   }
 
   private async finishAuthenticatedSession(user: User): Promise<string> {
-    if (this.isSelfRegistrationEnabled()) {
-      await this.bootstrapLocalAccount(user)
-    } else {
-      this.clearLocalPrincipal()
-    }
+    await this.bootstrapLocalAccount(user)
     const returnTo = this.pendingReturnTo()
     window.sessionStorage.removeItem(RETURN_TO_KEY)
     return returnTo

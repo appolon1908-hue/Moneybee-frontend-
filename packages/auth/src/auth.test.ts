@@ -99,18 +99,35 @@ describe("OIDC session manager", () => {
     installWindow(storage)
     const fake = fakeOidcManager()
     const manager = new MoneyBeeAuthManager(options, fake.port as never)
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async () => new Response(JSON.stringify({
+      created: false,
+      user_id: "user-1",
+      organization_id: "org-1",
+      username: "operator",
+      email: "operator@example.test",
+      email_verified: true,
+      membership_type: "MONEYBEE",
+      registration_source: "KEYCLOAK_PASSWORD",
+      welcome_event_status: "EXISTING",
+      request_id: "request-1",
+    }), { status: 200, headers: { "Content-Type": "application/json" } })) as typeof fetch
 
-    await manager.login("/offers?application=123")
-    expect(storage.getItem(RETURN_TO_KEY)).toBe("/offers?application=123")
-    expect(fake.calls.login).toBe(1)
-    expect(await manager.handleCallback()).toBe("/offers?application=123")
-    expect(fake.calls.callback).toBe(1)
-    await manager.handleSilentCallback()
-    expect(fake.calls.silentCallback).toBe(1)
-    expect(await manager.isAuthenticated()).toBe(true)
-    expect(await manager.getAccessToken()).toBe("access-token")
-    await manager.logout()
-    expect(fake.calls.logout).toBe(1)
+    try {
+      await manager.login("/offers?application=123")
+      expect(storage.getItem(RETURN_TO_KEY)).toBe("/offers?application=123")
+      expect(fake.calls.login).toBe(1)
+      expect(await manager.handleCallback()).toBe("/offers?application=123")
+      expect(fake.calls.callback).toBe(1)
+      await manager.handleSilentCallback()
+      expect(fake.calls.silentCallback).toBe(1)
+      expect(await manager.isAuthenticated()).toBe(true)
+      expect(await manager.getAccessToken()).toBe("access-token")
+      await manager.logout()
+      expect(fake.calls.logout).toBe(1)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
   })
 
   it("sends tenant selection and parses stable backend identity errors", async () => {
