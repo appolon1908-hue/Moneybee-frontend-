@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { MoneyBeeAuthManager } from "./auth-manager"
 import { LocalIdentityError, safeReturnTo } from "./errors"
+import { installPortalGuard } from "./guards"
 import { hasMembership, hasPermission, hasRole } from "./permissions"
 import {
   ACTIVE_ORGANIZATION_KEY,
@@ -93,6 +94,10 @@ const options = {
   postLogoutRedirectUri: "https://app.moneybeeloan.com/auth/login",
 }
 
+type GuardCallback = (
+  route: { meta: Record<string, unknown>; fullPath: string },
+) => Promise<unknown> | unknown
+
 describe("OIDC session manager", () => {
   it("supports login, callback deep links, refresh-safe sessions, and logout", async () => {
     const storage = memoryStorage()
@@ -168,5 +173,48 @@ describe("OIDC session manager", () => {
     const manager = new MoneyBeeAuthManager(options, fake.port as never)
     expect(await manager.sessionExpired()).toBe(true)
     expect(await manager.isAuthenticated()).toBe(false)
+  })
+
+  it("guards routes with backend-resolved principal instead of pre-reading token state", async () => {
+    let guard: GuardCallback | undefined
+    const router = {
+      beforeEach(callback: GuardCallback) {
+        guard = callback
+      },
+    }
+    const auth = {
+      getLocalPrincipal: async () => principal,
+      sessionExpired: async () => false,
+    }
+
+    installPortalGuard(router as never, auth as never, { membershipType: "BORROWER" })
+
+    if (!guard) throw new Error("Expected portal guard to be registered")
+    const registeredGuard = guard
+    expect(await registeredGuard({ meta: {}, fullPath: "/dashboard" })).toBe(true)
+  })
+
+  it("redirects unauthenticated principal resolution to login", async () => {
+    let guard: GuardCallback | undefined
+    const router = {
+      beforeEach(callback: GuardCallback) {
+        guard = callback
+      },
+    }
+    const auth = {
+      getLocalPrincipal: async () => {
+        throw new LocalIdentityError("Authentication is required.", 401, "AUTHENTICATION_REQUIRED")
+      },
+      sessionExpired: async () => false,
+    }
+
+    installPortalGuard(router as never, auth as never, { membershipType: "BORROWER" })
+
+    if (!guard) throw new Error("Expected portal guard to be registered")
+    const registeredGuard = guard
+    expect(await registeredGuard({ meta: {}, fullPath: "/dashboard" })).toEqual({
+      path: "/auth/login",
+      query: { returnTo: "/dashboard" },
+    })
   })
 })

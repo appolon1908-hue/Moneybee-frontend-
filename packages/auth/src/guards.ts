@@ -32,12 +32,6 @@ export function installPortalGuard(
 ): void {
   router.beforeEach(async (to) => {
     if (to.meta.public === true) return true
-    if (!(await auth.isAuthenticated())) {
-      return {
-        path: await auth.sessionExpired() ? "/auth/session-expired" : "/auth/login",
-        query: { returnTo: to.fullPath },
-      }
-    }
     try {
       const principal = await auth.getLocalPrincipal()
       if (requirement.membershipType && !hasMembership(principal, requirement.membershipType)) {
@@ -49,7 +43,10 @@ export function installPortalGuard(
       return true
     } catch (error) {
       if (error instanceof LocalIdentityError && error.status === 401) {
-        return { path: "/auth/session-expired", query: { returnTo: to.fullPath } }
+        return {
+          path: await auth.sessionExpired() ? "/auth/session-expired" : "/auth/login",
+          query: { returnTo: to.fullPath },
+        }
       }
       return { path: "/403" }
     }
