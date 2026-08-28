@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue"
+import { computed, reactive, ref, watch } from "vue"
 import { submitPrequalification } from "@moneybee/api-client"
 import { PUBLIC_CONSENT_HASH, PUBLIC_CONSENT_TEXT, PUBLIC_CONSENT_VERSION } from "../publicFormPayloads"
 
@@ -8,7 +8,7 @@ const step = ref(1)
 const busy = ref(false)
 const error = ref("")
 const accepted = ref<{reference: string; next_action: {url: string}} | null>(null)
-const idempotencyKey = crypto.randomUUID()
+const idempotencyKey = ref("")
 const form = reactive({
   funding_amount: 50000,
   use_of_funds: "WORKING_CAPITAL",
@@ -25,10 +25,15 @@ const form = reactive({
 const progress = computed(() => step.value * 20)
 const params = new URLSearchParams(location.search)
 
+watch(form, () => {
+  if (!busy.value && !accepted.value) idempotencyKey.value = ""
+}, { deep: true })
+
 async function submit() {
   busy.value = true
   error.value = ""
   try {
+    if (!idempotencyKey.value) idempotencyKey.value = crypto.randomUUID()
     accepted.value = await submitPrequalification({
       ...form,
       currency: "USD",
@@ -51,7 +56,7 @@ async function submit() {
         fbclid: params.get("fbclid"),
         affiliate: params.get("affiliate"),
       },
-    }, idempotencyKey)
+    }, idempotencyKey.value)
   } catch (value) {
     error.value = value instanceof Error ? value.message : "Unable to submit right now."
   } finally {
