@@ -39,9 +39,19 @@ see Phase 5.
 - [x] HSTS on the production edge (`deploy/Caddyfile.moneybee`) — backend
       staging edge already sets it, frontend production edge didn't;
       mirrored the same `(common)` snippet pattern (pass: `9584805`)
-- [ ] Test coverage for `apps/admin`, `apps/borrower`, `apps/lender`
-      (currently zero) — start with the form/status-transition flows that
-      carry real business logic, not smoke tests
+- [x] Test coverage for `apps/admin`, `apps/borrower`, `apps/lender`
+      (was zero) — pass: `c0f546b`. Targeted the highest-value real bug
+      class first: each app's `installPortalGuard()` requirement
+      (membershipType/permission) extracted into a testable
+      `portal-config.ts` and asserted exactly, since a copy-paste error
+      between the three near-identical `main.ts` files would silently
+      cross-wire portal access; plus route-table sanity (no duplicate
+      paths, every `/auth/*` entry point stays reachable). Unplanned bonus
+      found while wiring this up: converting routes to Vue Router's lazy
+      `component: () => import(...)` pattern (needed to make the router
+      importable under vitest without a real browser History object) also
+      switched each app from one large bundle to per-route code-splitting
+      — confirmed in build output.
 - [ ] Real shared component set in `packages/ui` (currently one CSS file)
       — Button, Input, Table, StatusBadge, Card, form-field wrapper at
       minimum, consumed by all four apps
