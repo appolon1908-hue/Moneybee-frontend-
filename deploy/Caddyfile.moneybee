@@ -1,37 +1,57 @@
 # MoneyBee edge routes.
 # Import this file from the server's active Caddyfile only after all upstreams
 # are healthy on the moneybee-edge Docker network.
+#
+# The (common) snippet mirrors moneybee-backend/deploy/Caddyfile.staging so
+# production carries the same baseline headers staging already does,
+# including HSTS (Caddy is the TLS terminator; the per-app nginx.conf sets
+# CSP and the remaining content-security headers, so they aren't repeated
+# here beyond what staging already duplicates by the same pattern).
+(common) {
+    encode zstd gzip
+    header {
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        X-Frame-Options "DENY"
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        -Server
+    }
+}
 
 moneybeeloan.com {
-    encode zstd gzip
+    import common
     reverse_proxy moneybee-marketing:80
 }
 
 www.moneybeeloan.com {
+    import common
     redir https://moneybeeloan.com{uri} permanent
 }
 
 app.moneybeeloan.com {
-    encode zstd gzip
+    import common
     reverse_proxy moneybee-borrower:80
 }
 
 lenders.moneybeeloan.com {
-    encode zstd gzip
+    import common
     reverse_proxy moneybee-lender:80
 }
 
 # Compatibility redirect while the historical singular DNS record exists.
 lender.moneybeeloan.com {
+    import common
     redir https://lenders.moneybeeloan.com{uri} permanent
 }
 
 admin.moneybeeloan.com {
-    encode zstd gzip
+    import common
     reverse_proxy moneybee-admin:80
 }
 
 api.moneybeeloan.com {
-    encode zstd gzip
+    import common
+    header Cache-Control "no-store"
     reverse_proxy moneybee-api:8000
 }

@@ -45,6 +45,7 @@ RUN apk upgrade --no-cache \
     && chown -R nginx:nginx /tmp/nginx /var/cache/nginx /usr/share/nginx/html
 COPY nginx-main.conf /etc/nginx/nginx.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx-security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=build --chown=nginx:nginx /src/apps/$APP/dist /usr/share/nginx/html
 USER nginx
 EXPOSE 8080
