@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue"
 import { api, money } from "@moneybee/api-client"
+import { StatusBadge } from "@moneybee/ui"
 
 type Submission = {
   id: string
@@ -97,7 +98,7 @@ onMounted(load)
     <div v-if="!rows.length" class="card">No applications are assigned.</div>
     <div class="grid two">
       <article v-for="row in rows" :key="row.id" class="card grid">
-        <span class="eyebrow">{{ row.status }}</span>
+        <StatusBadge :status="row.status" />
         <strong>Application {{ row.application_id.slice(0, 8) }}</strong>
         <small>Program version {{ row.program_version }}</small>
         <button class="secondary" @click="selected = row">Review</button>

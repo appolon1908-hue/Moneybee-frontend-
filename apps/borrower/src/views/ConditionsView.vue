@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
 import { api } from "@moneybee/api-client"
+import { StatusBadge } from "@moneybee/ui"
 
 type Condition = {
   id: string
@@ -63,7 +64,7 @@ onMounted(load)
     </div>
     <div class="grid two">
       <article v-for="row in rows" :key="row.id" class="card grid">
-        <span class="eyebrow">{{ row.status.replaceAll("_", " ") }}</span>
+        <StatusBadge :status="row.status" />
         <strong>{{ row.description }}</strong>
         <button
           v-if="['BORROWER_ACTION_REQUIRED', 'REJECTED'].includes(row.status)"

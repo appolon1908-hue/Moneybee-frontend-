@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query"
 import { api } from "@moneybee/api-client"
+import { humanize } from "@moneybee/ui"
 
 const applicationId = import.meta.env.VITE_DEMO_APPLICATION_ID || ""
 const query = useQuery({
@@ -20,7 +21,7 @@ const query = useQuery({
       <strong>{{ (query.data.value as any)?.completion_percentage }}% complete</strong>
       <div class="progress"><span :style="{width: (query.data.value as any)?.completion_percentage + '%'}"></span></div>
       <div v-for="item in (query.data.value as any)?.requirements" :key="item.code">
-        {{ item.complete ? "✓" : "○" }} {{ item.code.replaceAll("_", " ") }}
+        {{ item.complete ? "✓" : "○" }} {{ humanize(item.code) }}
       </div>
       <RouterLink class="button" to="/application">Continue application</RouterLink>
     </div>

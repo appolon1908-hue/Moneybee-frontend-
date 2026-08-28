@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
 import { api, money } from "@moneybee/api-client"
+import { StatusBadge, humanize } from "@moneybee/ui"
 
 type Funding = {
   id: string
@@ -122,7 +123,7 @@ onMounted(async () => {
         <tbody>
           <tr v-for="row in fundings" :key="row.id">
             <td>{{ row.application_id.slice(0, 8) }}</td>
-            <td>{{ row.status }}</td>
+            <td><StatusBadge :status="row.status" /></td>
             <td>{{ money(row.approved_amount) }}</td>
             <td>{{ money(row.funded_amount) }}</td>
           </tr>
@@ -138,9 +139,9 @@ onMounted(async () => {
         </thead>
         <tbody>
           <tr v-for="row in complaints" :key="row.id">
-            <td>{{ row.category.replaceAll("_", " ") }}</td>
+            <td>{{ humanize(row.category) }}</td>
             <td>{{ row.priority }}</td>
-            <td>{{ row.status }}</td>
+            <td><StatusBadge :status="row.status" /></td>
           </tr>
         </tbody>
       </table>
