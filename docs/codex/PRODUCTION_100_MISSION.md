@@ -29,11 +29,16 @@ see Phase 5.
 
 ## Phase 1 — Production hardening (from the system review, code-only, low risk)
 
-- [ ] Content-Security-Policy at the edge (`deploy/Caddyfile.moneybee`) or
+- [x] Content-Security-Policy at the edge (`deploy/Caddyfile.moneybee`) or
       per-app (`nginx.conf`) — top XSS/token-theft mitigation, currently
-      absent end-to-end
-- [ ] HSTS on the production edge (`deploy/Caddyfile.moneybee`) — backend
-      staging edge already sets it, frontend production edge doesn't
+      absent end-to-end — landed per-app via `nginx-security-headers.conf`
+      (pass: `9584805`). Also fixed a real bug found in the process: every
+      nginx location block already set its own `add_header`, which per
+      nginx's inheritance rule silently dropped the server-level security
+      headers for every real response.
+- [x] HSTS on the production edge (`deploy/Caddyfile.moneybee`) — backend
+      staging edge already sets it, frontend production edge didn't;
+      mirrored the same `(common)` snippet pattern (pass: `9584805`)
 - [ ] Test coverage for `apps/admin`, `apps/borrower`, `apps/lender`
       (currently zero) — start with the form/status-transition flows that
       carry real business logic, not smoke tests
