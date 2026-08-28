@@ -14,14 +14,16 @@ import {
 } from "@moneybee/api-client"
 import "@moneybee/ui/styles.css"
 import App from "./App.vue"
-import router from "./router"
+import { createAppRouter } from "./router"
+import { portalGuardRequirement } from "./portal-config"
 
 const app = createApp(App)
+const router = createAppRouter()
 const auth = createAuthManager()
 configureAccessTokenProvider(() => auth.getAccessToken())
 configureOrganizationIdProvider(() => window.sessionStorage.getItem(ACTIVE_ORGANIZATION_KEY))
 configureUnauthorizedHandler(async () => Boolean(await auth.refreshSession()))
-installPortalGuard(router, auth, { membershipType: "LENDER" })
+installPortalGuard(router, auth, portalGuardRequirement)
 app.provide(AUTH_MANAGER, auth)
 app.use(createPinia())
 app.use(router)
