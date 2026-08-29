@@ -50,7 +50,7 @@ describe("finance API contract", () => {
     }
   })
 
-  it("sends the same idempotency key in the canonical header and body", async () => {
+  it("sends the idempotency key only in the header, never in the body (the backend's JournalEntryCreate forbids extra fields and 422s on a body idempotency_key)", async () => {
     configureAccessTokenProvider(async () => "token-finance")
     configureOrganizationIdProvider(() => "11111111-1111-1111-1111-111111111111")
     const originalFetch = globalThis.fetch
@@ -62,8 +62,10 @@ describe("finance API contract", () => {
       const headers = new Headers(init?.headers)
       expect(headers.get("Idempotency-Key")).toBe(key)
       expect(headers.get("X-Organization-ID")).toBe("11111111-1111-1111-1111-111111111111")
-      const body = JSON.parse(String(init?.body)) as { idempotency_key: string }
-      expect(body.idempotency_key).toBe(key)
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>
+      expect(body.idempotency_key).toBeUndefined()
+      expect(body.organization_id).toBeUndefined()
+      expect(body.source_type).toBe("MANUAL")
       return new Response(JSON.stringify({
         id: "journal-1",
         organization_id: "11111111-1111-1111-1111-111111111111",

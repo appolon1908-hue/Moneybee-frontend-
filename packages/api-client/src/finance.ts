@@ -1,4 +1,5 @@
 import { api } from "./core"
+import { withOrganization } from "./portal"
 
 export type AccountType = "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE"
 export type PostingSide = "DEBIT" | "CREDIT"
@@ -121,45 +122,63 @@ function query(values: Record<string, string | number | undefined>): string {
 
 export const financeApi = {
   accounts(organizationId?: string, currency?: string): Promise<LedgerAccount[]> {
-    return api(`/finance/accounts${query({ organization_id: organizationId, currency })}`)
+    return api(
+      `/finance/accounts${query({ currency })}`,
+      withOrganization(organizationId),
+    )
   },
 
-  createAccount(input: {
-    organization_id?: string
-    code: string
-    name: string
-    account_type: AccountType
-    currency?: string
-  }): Promise<LedgerAccount> {
-    return api("/finance/accounts", { method: "POST", body: JSON.stringify(input) })
+  createAccount(
+    input: {
+      code: string
+      name: string
+      account_type: AccountType
+      currency?: string
+    },
+    organizationId?: string,
+  ): Promise<LedgerAccount> {
+    return api(
+      "/finance/accounts",
+      withOrganization(organizationId, { method: "POST", body: JSON.stringify(input) }),
+    )
   },
 
   periods(organizationId?: string): Promise<AccountingPeriod[]> {
-    return api(`/finance/periods${query({ organization_id: organizationId })}`)
+    return api("/finance/periods", withOrganization(organizationId))
   },
 
-  createPeriod(input: {
-    organization_id?: string
-    name: string
-    starts_at: string
-    ends_at: string
-  }): Promise<AccountingPeriod> {
-    return api("/finance/periods", { method: "POST", body: JSON.stringify(input) })
+  createPeriod(
+    input: {
+      name: string
+      starts_at: string
+      ends_at: string
+    },
+    organizationId?: string,
+  ): Promise<AccountingPeriod> {
+    return api(
+      "/finance/periods",
+      withOrganization(organizationId, { method: "POST", body: JSON.stringify(input) }),
+    )
   },
 
-  closePeriod(periodId: string): Promise<AccountingPeriod> {
-    return api(`/finance/periods/${encodeURIComponent(periodId)}/close`, { method: "POST" })
+  closePeriod(periodId: string, organizationId?: string): Promise<AccountingPeriod> {
+    return api(
+      `/finance/periods/${encodeURIComponent(periodId)}/close`,
+      withOrganization(organizationId, { method: "POST" }),
+    )
   },
 
   journalEntries(
     organizationId?: string,
     options: JournalListOptions = {},
   ): Promise<JournalEntry[]> {
-    return api(`/finance/journal-entries${query({
-      organization_id: organizationId,
-      currency: options.currency,
-      limit: options.limit,
-    })}`)
+    return api(
+      `/finance/journal-entries${query({
+        currency: options.currency,
+        limit: options.limit,
+      })}`,
+      withOrganization(organizationId),
+    )
   },
 
   journalPostings(entryId: string): Promise<JournalPosting[]> {
@@ -167,21 +186,27 @@ export const financeApi = {
   },
 
   postJournal(input: JournalEntryInput): Promise<JournalEntry> {
-    return api("/finance/journal-entries", {
-      method: "POST",
-      body: JSON.stringify(input),
-      idempotencyKey: input.idempotency_key,
-    })
+    const { organization_id: organizationId, idempotency_key: idempotencyKey, ...body } = input
+    return api(
+      "/finance/journal-entries",
+      withOrganization(organizationId, {
+        method: "POST",
+        body: JSON.stringify(body),
+        idempotencyKey,
+      }),
+    )
   },
 
   trialBalance(
     organizationId?: string,
     options: TrialBalanceOptions = {},
   ): Promise<TrialBalance> {
-    return api(`/finance/trial-balance${query({
-      organization_id: organizationId,
-      currency: options.currency,
-      as_of: options.asOf,
-    })}`)
+    return api(
+      `/finance/trial-balance${query({
+        currency: options.currency,
+        as_of: options.asOf,
+      })}`,
+      withOrganization(organizationId),
+    )
   },
 }
