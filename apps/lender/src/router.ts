@@ -12,9 +12,13 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "Lender workspace" },
   },
   { path: "/applications", component: () => import("./views/SubmissionsView.vue") },
-  { path: "/programs", component: () => import("./views/DashboardView.vue") },
-  { path: "/offers", component: () => import("./views/SubmissionsView.vue") },
-  { path: "/funded-deals", component: () => import("./views/DashboardView.vue") },
+  { path: "/underwriting", component: () => import("./views/UnderwritingView.vue") },
+  { path: "/conditions", component: () => import("./views/ConditionsView.vue") },
+  { path: "/programs", component: () => import("./views/ProgramsView.vue") },
+  { path: "/offers", component: () => import("./views/OffersView.vue") },
+  { path: "/funded-deals", component: () => import("./views/FundedView.vue") },
+  { path: "/reports", component: () => import("./views/ReportsView.vue") },
+  { path: "/settings", component: () => import("./views/SettingsView.vue") },
 ]
 
 export function createAppRouter() {

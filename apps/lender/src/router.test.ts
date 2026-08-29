@@ -22,9 +22,13 @@ describe("lender router", () => {
         "/dashboard",
         "/workspace",
         "/applications",
+        "/underwriting",
+        "/conditions",
         "/programs",
         "/offers",
         "/funded-deals",
+        "/reports",
+        "/settings",
       ]),
     )
   })
