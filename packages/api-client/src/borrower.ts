@@ -183,6 +183,34 @@ export interface CompletedUpload {
   updated_at: string;
 }
 
+export interface BorrowerCondition {
+  id: string;
+  submission_id: string;
+  application_id: string;
+  description: string;
+  status: string;
+  created_at: string;
+}
+
+export interface BorrowerOffer {
+  id: string;
+  application_id: string;
+  lender_id: string;
+  program_id: string | null;
+  product_type: string;
+  amount: string | number;
+  term_months: number;
+  payment_frequency: string;
+  payment_amount: string | number;
+  apr: string | number | null;
+  factor_rate?: string | number | null;
+  origination_fee: string | number;
+  total_repayment: string | number | null;
+  expires_at: string | null;
+  status: string;
+  version: number;
+}
+
 function asMoney(value: string | number | null | undefined): string | null {
   if (value === null || value === undefined || value === "") return null;
   return String(value);
@@ -449,6 +477,51 @@ export function completeBorrowerUploadSession(
     withOrganization(organizationId, {
       method: "POST",
       body: JSON.stringify(payload),
+    }),
+  );
+}
+
+export function listBorrowerApplicationConditions(
+  applicationId: string,
+  organizationId?: string,
+): Promise<BorrowerCondition[]> {
+  return api<BorrowerCondition[]>(
+    ENDPOINTS.applications.conditions(applicationId),
+    withOrganization(organizationId),
+  );
+}
+
+export function submitBorrowerCondition(
+  conditionId: string,
+  organizationId?: string,
+): Promise<BorrowerCondition> {
+  return api<BorrowerCondition>(
+    ENDPOINTS.conditions.submit(conditionId),
+    withOrganization(organizationId, { method: "POST" }),
+  );
+}
+
+export function listBorrowerApplicationOffers(
+  applicationId: string,
+  organizationId?: string,
+): Promise<BorrowerOffer[]> {
+  return api<BorrowerOffer[]>(
+    ENDPOINTS.applications.offers(applicationId),
+    withOrganization(organizationId),
+  );
+}
+
+export function acceptBorrowerOffer(
+  offerId: string,
+  input: { idempotencyKey: string; expectedApplicationVersion?: number },
+  organizationId?: string,
+): Promise<BorrowerOffer> {
+  return api<BorrowerOffer>(
+    ENDPOINTS.offers.accept(offerId),
+    withOrganization(organizationId, {
+      method: "POST",
+      idempotencyKey: input.idempotencyKey,
+      expectedVersion: input.expectedApplicationVersion,
     }),
   );
 }

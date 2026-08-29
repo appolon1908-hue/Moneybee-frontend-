@@ -1,19 +1,17 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue"
-import { api, money } from "@moneybee/api-client"
+import {
+  createLenderSubmissionCondition,
+  createLenderSubmissionOffer,
+  getAuthContext,
+  listLenderSubmissions,
+  money,
+  type LenderSubmissionSummary,
+} from "@moneybee/api-client"
 
-type Submission = {
-  id: string
-  application_id: string
-  lender_id: string
-  program_id: string
-  program_version: number
-  status: string
-  created_at: string
-}
-
-const rows = ref<Submission[]>([])
-const selected = ref<Submission | null>(null)
+const organizationId = ref("")
+const rows = ref<LenderSubmissionSummary[]>([])
+const selected = ref<LenderSubmissionSummary | null>(null)
 const busy = ref(false)
 const error = ref("")
 const message = ref("")
@@ -32,7 +30,9 @@ const offer = reactive({
 async function load() {
   error.value = ""
   try {
-    rows.value = await api<Submission[]>("/lender/submissions")
+    const context = await getAuthContext()
+    organizationId.value = context.active_organization_id ?? ""
+    rows.value = await listLenderSubmissions(organizationId.value)
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : "Request failed"
   }
@@ -54,30 +54,32 @@ async function run(action: () => Promise<unknown>, success: string) {
 }
 
 function requestCondition() {
-  if (!selected.value) return
+  const submission = selected.value
+  if (!submission) return
   return run(
     () =>
-      api(`/lender/submissions/${selected.value?.id}/conditions`, {
-        method: "POST",
-        body: JSON.stringify({description: conditionDescription.value}),
-      }),
+      createLenderSubmissionCondition(submission.id, {
+        description: conditionDescription.value,
+      }, organizationId.value),
     "Condition sent to the borrower.",
   )
 }
 
 function createOffer() {
-  if (!selected.value) return
+  const submission = selected.value
+  if (!submission) return
   return run(
     () =>
-      api(`/lender/submissions/${selected.value?.id}/offers`, {
-        method: "POST",
-        body: JSON.stringify({
-          application_id: selected.value?.application_id,
-          lender_id: selected.value?.lender_id,
-          program_id: selected.value?.program_id,
+      createLenderSubmissionOffer(
+        submission.id,
+        {
+          application_id: submission.application_id,
+          lender_id: submission.lender_id,
+          program_id: submission.program_id,
           ...offer,
-        }),
-      }),
+        },
+        organizationId.value,
+      ),
     "Offer created.",
   )
 }

@@ -5,7 +5,9 @@ import { queryString, withOrganization, type PortalTask } from "./portal";
 export interface LenderSubmissionSummary {
   id: string;
   application_id: string;
+  lender_id: string;
   program_id: string | null;
+  program_version?: number;
   status: string;
   assigned_to_subject: string | null;
   submitted_at: string | null;
@@ -61,12 +63,10 @@ export interface LenderSubmissionWorkspace {
 }
 
 export interface LenderDecisionCreate {
-  decision: "APPROVE" | "DECLINE" | "REQUEST_INFORMATION";
+  expected_version: number;
+  decision: "APPROVE" | "DECLINE" | "CONDITIONS" | "FRAUD_REVIEW" | "COMPLIANCE_REVIEW";
   notes?: string | null;
-  requested_items?: string[];
-  offer_amount?: string | null;
-  term_months?: number | null;
-  interest_rate?: string | null;
+  reason_codes?: string[];
 }
 
 export interface LenderDecisionResult {
@@ -82,6 +82,42 @@ export interface LenderDecisionResult {
 export interface BankAnalysisQueueItem {
   submission: LenderSubmissionSummary;
   analysis: Record<string, unknown>;
+}
+
+export interface LenderConditionCreate {
+  description: string;
+}
+
+export interface LenderCondition {
+  id: string;
+  submission_id: string;
+  application_id: string;
+  description: string;
+  status: string;
+  created_at: string;
+}
+
+export interface LenderOfferCreate {
+  application_id: string;
+  lender_id: string;
+  program_id?: string | null;
+  product_type: string;
+  amount: string | number;
+  term_months: number;
+  payment_frequency: string;
+  payment_amount: string | number;
+  apr?: string | number | null;
+  factor_rate?: string | number | null;
+  origination_fee?: string | number;
+  total_repayment?: string | number | null;
+  expires_at?: string | null;
+}
+
+export interface LenderOffer extends LenderOfferCreate {
+  id: string;
+  program_id: string | null;
+  status: string;
+  version: number;
 }
 
 export interface LenderPortfolio {
@@ -164,6 +200,43 @@ export function recordLenderDecision(
     withOrganization(organizationId, {
       method: "POST",
       idempotencyKey,
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
+export function listLenderSubmissions(
+  organizationId?: string | null,
+): Promise<LenderSubmissionSummary[]> {
+  return api<LenderSubmissionSummary[]>(
+    ENDPOINTS.lender.submissions,
+    withOrganization(organizationId),
+  );
+}
+
+export function createLenderSubmissionCondition(
+  submissionId: string,
+  payload: LenderConditionCreate,
+  organizationId?: string | null,
+): Promise<LenderCondition> {
+  return api<LenderCondition>(
+    ENDPOINTS.lender.submissionConditions(submissionId),
+    withOrganization(organizationId, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
+export function createLenderSubmissionOffer(
+  submissionId: string,
+  payload: LenderOfferCreate,
+  organizationId?: string | null,
+): Promise<LenderOffer> {
+  return api<LenderOffer>(
+    ENDPOINTS.lender.submissionOffers(submissionId),
+    withOrganization(organizationId, {
+      method: "POST",
       body: JSON.stringify(payload),
     }),
   );

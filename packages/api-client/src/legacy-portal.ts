@@ -1,4 +1,8 @@
 import {
+  acceptBorrowerOffer,
+  listBorrowerApplicationConditions,
+  listBorrowerApplicationOffers,
+  submitBorrowerCondition,
   createBorrowerConversation,
   createBorrowerMessage,
   createBorrowerUploadSession,
@@ -13,6 +17,8 @@ import {
   listBankAnalysisQueue,
   listLenderPrograms,
   recordLenderDecision,
+  createLenderSubmissionCondition,
+  createLenderSubmissionOffer,
   updateLenderProgram,
   type LenderProgram,
   type LenderSubmissionSummary,
@@ -22,10 +28,10 @@ import {
 export type PortalContext = AuthContext;
 
 export interface LenderDecisionInput {
-  decision: "APPROVE" | "DECLINE" | "REQUEST_INFORMATION";
+  expected_version: number;
+  decision: "APPROVE" | "DECLINE" | "CONDITIONS" | "FRAUD_REVIEW" | "COMPLIANCE_REVIEW";
   reason_code?: string;
   comments?: string;
-  conditions?: string[];
   approved_amount?: string;
   interest_rate?: string;
   term_months?: number;
@@ -46,6 +52,11 @@ export interface LenderWorkspace {
 
 export const portalApi = {
   context: getAuthContext,
+
+  applicationConditions: listBorrowerApplicationConditions,
+  submitCondition: submitBorrowerCondition,
+  applicationOffers: listBorrowerApplicationOffers,
+  acceptOffer: acceptBorrowerOffer,
 
   messages(conversationId: string, organizationId?: string) {
     return listBorrowerMessages(conversationId, organizationId);
@@ -185,16 +196,17 @@ export const lenderPortalApi = {
     const result = await recordLenderDecision(
       submissionId,
       {
+        expected_version: payload.expected_version,
         decision: payload.decision,
+        reason_codes: payload.reason_code ? [payload.reason_code] : [],
         notes: payload.comments || payload.reason_code || null,
-        requested_items: payload.conditions || [],
-        offer_amount: payload.approved_amount || null,
-        interest_rate: payload.interest_rate || null,
-        term_months: payload.term_months || null,
       },
       idempotencyKey,
       organizationId,
     );
     return { ...result, replayed: false as const };
   },
+
+  createCondition: createLenderSubmissionCondition,
+  createOffer: createLenderSubmissionOffer,
 };

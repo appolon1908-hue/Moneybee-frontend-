@@ -19,12 +19,9 @@ const bankQueue = ref<Array<Record<string, unknown>>>([])
 const portfolio = ref<Record<string, unknown>>({})
 const selectedSubmissionId = ref('')
 const submissionWorkspace = ref<Record<string, unknown> | null>(null)
-const decision = ref<LenderDecisionInput['decision']>('REQUEST_INFORMATION')
+const decision = ref<LenderDecisionInput['decision']>('CONDITIONS')
 const decisionReason = ref('')
 const decisionComments = ref('')
-const approvedAmount = ref('')
-const interestRate = ref('')
-const termMonths = ref('')
 
 const organizationId = computed(() => context.value?.active_organization_id ?? null)
 const programs = computed(() => workspace.value?.programs ?? [])
@@ -142,15 +139,10 @@ async function submitDecision(): Promise<void> {
   clearMessages()
   try {
     const payload: LenderDecisionInput = {
+      expected_version: Number((submissionWorkspace.value?.submission as Record<string, unknown>)?.version || 1),
       decision: decision.value,
       reason_code: decisionReason.value.trim() || undefined,
       comments: decisionComments.value.trim() || undefined,
-      conditions: [],
-    }
-    if (decision.value === 'APPROVE') {
-      if (approvedAmount.value) payload.approved_amount = approvedAmount.value
-      if (interestRate.value) payload.interest_rate = interestRate.value
-      if (termMonths.value) payload.term_months = Number(termMonths.value)
     }
     const result = await lenderPortalApi.recordDecision(
       selectedSubmissionId.value,
@@ -326,25 +318,13 @@ onMounted(async () => {
             <label>
               <span>Decision</span>
               <select v-model="decision">
-                <option value="REQUEST_INFORMATION">Request information</option>
+                <option value="CONDITIONS">Request information</option>
                 <option value="APPROVE">Approve for review</option>
                 <option value="DECLINE">Decline</option>
+                <option value="FRAUD_REVIEW">Escalate fraud review</option>
+                <option value="COMPLIANCE_REVIEW">Escalate compliance review</option>
               </select>
             </label>
-            <div v-if="decision === 'APPROVE'" class="field-row">
-              <label>
-                <span>Approved amount</span>
-                <input v-model="approvedAmount" inputmode="decimal" placeholder="25000" />
-              </label>
-              <label>
-                <span>Interest rate</span>
-                <input v-model="interestRate" inputmode="decimal" placeholder="12.5" />
-              </label>
-              <label>
-                <span>Term months</span>
-                <input v-model="termMonths" inputmode="numeric" placeholder="24" />
-              </label>
-            </div>
             <label>
               <span>Reason code</span>
               <input v-model="decisionReason" maxlength="100" />
