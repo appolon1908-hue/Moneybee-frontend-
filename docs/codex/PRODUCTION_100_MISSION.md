@@ -112,9 +112,15 @@ in the backend mission's Phase 2:
       a generic config-driven view (`ResourceView`/`OperationsView`
       already look like they're meant to be reused this way — verify
       before adding one-off view files that duplicate that pattern).
-- [ ] **Borrower portal** — `contracts`, `funding`, `renewals` slices are
-      not yet present as views; blocked on backend Phase 2's contracts/
-      e-sign and funding/commission/renewal engines landing first.
+- [x] **Borrower portal** — `contracts`, `funding`, `renewals` slices added
+      now that the backend engines they depend on have landed, pass:
+      `3e7dac9`. `FundingView` and `RenewalsView` read straight off the
+      existing `GET /applications/{id}/funding` and
+      `/renewal-opportunities` endpoints. `ContractsView` shows
+      status-specific guidance per contract state rather than a fake
+      in-app signing action, since no signing-link endpoint exists yet —
+      signing happens through DocuSign's own email flow once
+      `ESIGN_LIVE_SEND` is turned on.
 - [ ] **Shared packages still missing** per spec target: `forms`
       (resumable application form components — currently built ad hoc per
       app), `validation` (client-side feedback matching API constraints),
