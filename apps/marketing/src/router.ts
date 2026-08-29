@@ -2,18 +2,13 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router"
 import LandingView from "./views/LandingView.vue"
 import InquiryPageView from "./views/InquiryPageView.vue"
 import ResourcePageView from "./views/ResourcePageView.vue"
+import { financingSlugs } from "./landingPages"
 import type { PublicFormKind } from "./publicFormPayloads"
-
-const financingSlugs = [
-  "business-loans", "working-capital", "business-line-of-credit",
-  "equipment-financing", "sba-loans", "fast-business-funding",
-  "restaurant-financing", "trucking-business-loans",
-  "construction-business-loans", "retail-business-loans",
-]
 
 const resourceSlugs = [
   "how-it-works", "eligibility", "required-documents", "faq", "security",
   "privacy", "terms", "consents-and-disclosures", "accessibility", "complaints",
+  "cookie-notice", "advertising-disclosure", "privacy-choices", "about",
 ]
 
 const inquiryRoutes: Array<{ path: string; kind: PublicFormKind; topic?: string }> = [

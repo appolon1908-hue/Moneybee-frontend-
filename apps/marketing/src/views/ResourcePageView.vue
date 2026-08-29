@@ -29,5 +29,12 @@ const borrowerUrl = String(import.meta.env.VITE_BORROWER_URL || "http://localhos
         <p class="muted">{{ section.body }}</p>
       </article>
     </section>
+    <section class="container section legal-links" aria-label="Related MoneyBee pages">
+      <a href="/business-loans">Business funding</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/cookie-notice">Cookies</a>
+      <a href="/advertising-disclosure">Advertising disclosure</a>
+      <a href="/contact">Contact</a>
+    </section>
   </main>
 </template>

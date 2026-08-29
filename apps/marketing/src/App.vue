@@ -1,4 +1,9 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import CookieConsent from "./components/CookieConsent.vue"
+</script>
 <template>
-  <div class="shell"><RouterView /></div>
+  <div class="shell">
+    <RouterView />
+    <CookieConsent />
+  </div>
 </template>

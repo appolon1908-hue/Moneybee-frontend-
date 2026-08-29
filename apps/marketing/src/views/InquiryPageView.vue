@@ -42,5 +42,12 @@ const copy = computed(() => ({
       </div>
       <PublicInquiryForm :kind="props.kind" :landing-page="props.slug" :default-topic="props.defaultTopic" />
     </section>
+    <section class="container section legal-links" aria-label="Policy links">
+      <a href="/privacy">Privacy</a>
+      <a href="/cookie-notice">Cookies</a>
+      <a href="/advertising-disclosure">Advertising disclosure</a>
+      <a href="/privacy-choices">Privacy choices</a>
+      <a href="/terms">Terms</a>
+    </section>
   </main>
 </template>
