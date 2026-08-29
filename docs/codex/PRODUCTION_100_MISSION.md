@@ -105,13 +105,40 @@ in the backend mission's Phase 2:
       list, submission version threaded through); dropped the
       approved_amount/interest_rate/term_months decision fields since the
       backend never accepted them at decision time.
-- [ ] **Admin portal** — confirm each target slice
-      (`leads`, `fraud`, `underwriting`, `matching`, `lenders`, `funding`,
-      `commissions`, `crm`, `integrations`, `compliance`, `complaints`,
-      `affiliates`, `reporting`, `users`, `audit`) maps to a real view or
-      a generic config-driven view (`ResourceView`/`OperationsView`
-      already look like they're meant to be reused this way — verify
-      before adding one-off view files that duplicate that pattern).
+- [ ] **Admin portal** — slice audit in progress.
+      Confirmed real (not placeholder) so far: `leads`, `underwriting`,
+      `lenders` (→ `ResourceView` on real `/admin/catalog/*` and
+      `/admin/underwriting/reviews` endpoints — all verified to return
+      the plain-array shape `ResourceView` expects), `matching` (→
+      `/admin/catalog/matches`), `users` (→ `/admin/users`), `crm` (→
+      `CRMView` + `CrmDeliveriesView`), `funding`+`complaints` (→
+      `OperationsView`, reads `/admin/fundings`, `/admin/complaints`,
+      `/admin/integration-events`, `/admin/reconciliation-runs`),
+      `integrations` (→ `ResourceView` on `/admin/integration-inbox` +
+      `CapabilityView`), `commissions` (→ `FinanceView`, general ledger
+      rather than commission-specific, but real and now fixed — see
+      below).
+      While verifying `FinanceView` found it was **shipping broken**:
+      `financeApi.postJournal()` sent `idempotency_key` inside the POST
+      body; the backend's `JournalEntryCreate` schema forbids extra
+      fields and has no such field (idempotency is header-only) — every
+      "Post journal entry" click 422'd. The backend's own test suite
+      already documented this exact contract
+      (`tests/test_financial_ledger.py::forbidden_key_body`). Fixed
+      `finance.ts`'s three POST functions to stop sending
+      `organization_id`/`idempotency_key` in the body, and wired all six
+      functions through `withOrganization()` so their `organizationId`
+      parameters (previously sent as a query param the backend ignores)
+      actually work. A pre-existing frontend test had encoded the bug as
+      expected behavior — corrected it. Pass: `a693a41`.
+      Still unconfirmed / likely real gaps: **`audit`** — `/audit` in
+      `router.ts` still points at the placeholder `DashboardView`, even
+      though a real `/admin/audit-events` endpoint and
+      `adminPortalApi.auditEvents()` client wrapper already exist (same
+      class of placeholder-route issue the lender portal had). No
+      dedicated view or confirmed backend support found yet for `fraud`,
+      `compliance`, `affiliates`, or `reporting` — needs a follow-up pass
+      before this item can be checked off.
 - [x] **Borrower portal** — `contracts`, `funding`, `renewals` slices added
       now that the backend engines they depend on have landed, pass:
       `3e7dac9`. `FundingView` and `RenewalsView` read straight off the
