@@ -246,6 +246,33 @@ export interface BorrowerComplaintCreate {
   priority: PortalTaskPriority;
 }
 
+export interface CreditAuthorization {
+  id: string;
+  application_id: string;
+  authorization_version: string;
+  document_hash: string;
+  accepted_by: string;
+  accepted_at: string;
+}
+
+export interface CreditAuthorizationCreate {
+  authorization_version: string;
+  document_hash: string;
+  accepted: true;
+}
+
+export interface RequirementSnapshot {
+  id: string;
+  application_id: string;
+  policy_version: number;
+  completion_percentage: number;
+  ready_for_submission: boolean;
+  ready_for_contract: boolean;
+  ready_for_funding: boolean;
+  requirements: Array<Record<string, unknown>>;
+  created_at: string;
+}
+
 export interface BorrowerCondition {
   id: string;
   submission_id: string;
@@ -591,6 +618,50 @@ export function createBorrowerComplaint(
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  );
+}
+
+export function listCreditAuthorizations(
+  applicationId: string,
+  organizationId?: string,
+): Promise<CreditAuthorization[]> {
+  return api<CreditAuthorization[]>(
+    ENDPOINTS.applications.creditAuthorizations(applicationId),
+    withOrganization(organizationId),
+  );
+}
+
+export function authorizeCredit(
+  applicationId: string,
+  payload: CreditAuthorizationCreate,
+  organizationId?: string,
+): Promise<CreditAuthorization> {
+  return api<CreditAuthorization>(
+    ENDPOINTS.applications.creditAuthorizations(applicationId),
+    withOrganization(organizationId, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
+export function listRequirementSnapshots(
+  applicationId: string,
+  organizationId?: string,
+): Promise<RequirementSnapshot[]> {
+  return api<RequirementSnapshot[]>(
+    ENDPOINTS.applications.requirementSnapshots(applicationId),
+    withOrganization(organizationId),
+  );
+}
+
+export function createRequirementSnapshot(
+  applicationId: string,
+  organizationId?: string,
+): Promise<RequirementSnapshot> {
+  return api<RequirementSnapshot>(
+    ENDPOINTS.applications.requirementSnapshots(applicationId),
+    withOrganization(organizationId, { method: "POST" }),
   );
 }
 

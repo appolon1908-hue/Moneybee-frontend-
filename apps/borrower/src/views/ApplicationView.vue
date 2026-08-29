@@ -2,17 +2,23 @@
 import { onMounted, reactive, ref } from "vue"
 import {
   ApiProblem,
+  authorizeCredit,
   createBorrowerOwner,
+  createRequirementSnapshot,
   deleteBorrowerOwner,
   getActiveBorrowerApplication,
   getAuthContext,
   getBorrowerApplicationRequirements,
   getBorrowerBusinessProfile,
   getBorrowerFinancialProfile,
+  listCreditAuthorizations,
   listBorrowerOwners,
+  listRequirementSnapshots,
   saveBorrowerBusinessProfile,
   saveBorrowerFinancialProfile,
   submitBorrowerApplication,
+  type CreditAuthorization,
+  type RequirementSnapshot,
 } from "@moneybee/api-client"
 
 type Business = {
@@ -58,6 +64,10 @@ const message = ref("")
 const error = ref("")
 const owners = ref<Owner[]>([])
 const requirements = ref<Requirements | null>(null)
+const creditAuthorizations = ref<CreditAuthorization[]>([])
+const requirementSnapshots = ref<RequirementSnapshot[]>([])
+const creditAccepted = ref(false)
+const creditAuthorizationVersion = ref("credit-pull-v1")
 
 const business = reactive<Business>({
   legal_name: "",
@@ -111,9 +121,18 @@ async function refresh() {
     if (!applicationId.value) {
       owners.value = []
       requirements.value = null
+      creditAuthorizations.value = []
+      requirementSnapshots.value = []
       return
     }
-    const [savedBusiness, savedFinancial, savedOwners, savedRequirements] =
+    const [
+      savedBusiness,
+      savedFinancial,
+      savedOwners,
+      savedRequirements,
+      savedCreditAuthorizations,
+      savedRequirementSnapshots,
+    ] =
       await Promise.all([
         optionalGet<Business>(() =>
           getBorrowerBusinessProfile(applicationId.value, organizationId.value),
@@ -123,11 +142,15 @@ async function refresh() {
         ),
         listBorrowerOwners(applicationId.value, organizationId.value),
         getBorrowerApplicationRequirements(applicationId.value, organizationId.value),
+        listCreditAuthorizations(applicationId.value, organizationId.value),
+        listRequirementSnapshots(applicationId.value, organizationId.value),
       ])
     if (savedBusiness) Object.assign(business, savedBusiness)
     if (savedFinancial) Object.assign(financial, savedFinancial)
     owners.value = savedOwners
     requirements.value = savedRequirements
+    creditAuthorizations.value = savedCreditAuthorizations
+    requirementSnapshots.value = savedRequirementSnapshots
   } catch (caught) {
     error.value = describeError(caught)
   } finally {
@@ -205,6 +228,38 @@ function submitApplication() {
     () =>
       submitBorrowerApplication(applicationId.value, organizationId.value),
     "Application submitted for matching.",
+  )
+}
+
+function hashAuthorization(version: string): string {
+  const seed = `moneybee:${applicationId.value}:${version}:credit-authorization`
+  return Array.from(seed)
+    .map((character) => character.charCodeAt(0).toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 128)
+    .padEnd(64, '0')
+}
+
+function acceptCreditAuthorization() {
+  return run(
+    () =>
+      authorizeCredit(
+        applicationId.value,
+        {
+          authorization_version: creditAuthorizationVersion.value,
+          document_hash: hashAuthorization(creditAuthorizationVersion.value),
+          accepted: true,
+        },
+        organizationId.value,
+      ),
+    "Credit authorization accepted.",
+  )
+}
+
+function snapshotRequirements() {
+  return run(
+    () => createRequirementSnapshot(applicationId.value, organizationId.value),
+    "Requirement snapshot recorded.",
   )
 }
 
@@ -373,6 +428,68 @@ onMounted(refresh)
         </button>
       </section>
 
+      <section class="card section">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">STEP 4</span>
+            <h3>Credit authorization</h3>
+          </div>
+          <span v-if="creditAuthorizations.length">{{ creditAuthorizations.length }} accepted</span>
+        </div>
+        <p>
+          Confirm authorization before MoneyBee or an approved provider starts any
+          credit-related underwriting action.
+        </p>
+        <div class="form-grid">
+          <label class="check-label">
+            <input v-model="creditAccepted" type="checkbox" />
+            I authorize MoneyBee to use this application for credit review.
+          </label>
+          <label>
+            Authorization version
+            <input v-model="creditAuthorizationVersion" maxlength="50" />
+          </label>
+        </div>
+        <button
+          :disabled="busy || !creditAccepted || !creditAuthorizationVersion"
+          @click="acceptCreditAuthorization"
+        >
+          Accept authorization
+        </button>
+        <div v-if="creditAuthorizations.length" class="evidence-list">
+          <article v-for="authorization in creditAuthorizations" :key="authorization.id">
+            <strong>{{ authorization.authorization_version }}</strong>
+            <small>{{ authorization.accepted_by }} · {{ new Date(authorization.accepted_at).toLocaleString() }}</small>
+          </article>
+        </div>
+      </section>
+
+      <section class="card section">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">AUDIT</span>
+            <h3>Requirement snapshots</h3>
+          </div>
+          <span v-if="requirementSnapshots.length">{{ requirementSnapshots.length }} recorded</span>
+        </div>
+        <p>
+          Snapshot the application checklist when the file is ready for submission,
+          contract, or funding review.
+        </p>
+        <button :disabled="busy || !requirements" @click="snapshotRequirements">
+          Record snapshot
+        </button>
+        <div v-if="requirementSnapshots.length" class="evidence-list">
+          <article v-for="snapshot in requirementSnapshots" :key="snapshot.id">
+            <strong>{{ snapshot.completion_percentage }}% complete</strong>
+            <small>
+              Policy {{ snapshot.policy_version }} ·
+              {{ new Date(snapshot.created_at).toLocaleString() }}
+            </small>
+          </article>
+        </div>
+      </section>
+
       <section class="card submit-card">
         <div>
           <span class="eyebrow">REVIEW</span>
@@ -423,6 +540,33 @@ label {
   display: grid;
   gap: 7px;
   font-weight: 700;
+}
+
+.check-label {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.check-label input {
+  width: auto;
+}
+
+.evidence-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.evidence-list article {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f8f8f4;
+}
+
+.evidence-list small {
+  color: var(--muted);
 }
 input,
 select {

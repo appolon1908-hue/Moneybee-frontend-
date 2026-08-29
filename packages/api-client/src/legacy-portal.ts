@@ -15,6 +15,7 @@ import {
   getLenderSubmissionWorkspace,
   getLenderWorkspace,
   listBankAnalysisQueue,
+  listLenderBankTransactions,
   listLenderPrograms,
   recordLenderDecision,
   createLenderSubmissionCondition,
@@ -179,6 +180,17 @@ export const lenderPortalApi = {
       submissionId,
       organizationId,
     )) as unknown as Record<string, unknown>;
+  },
+
+  async bankTransactions(
+    submissionId: string,
+    organizationId?: string | null,
+  ): Promise<Array<Record<string, unknown>>> {
+    return (await listLenderBankTransactions(
+      submissionId,
+      200,
+      organizationId,
+    )) as unknown as Array<Record<string, unknown>>;
   },
 
   patchProgram(

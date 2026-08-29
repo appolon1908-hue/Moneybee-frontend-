@@ -1,17 +1,21 @@
 import {
   getAdminOperationsWorkspace,
   getIntegrationHealth,
+  getWebhookConfiguration,
   listAdminAuditEvents,
   listAdminOrganizationMembers,
   listAdminOrganizations,
   listAdminTasks,
   listWebhookReceipts,
+  listOperationalExceptions,
   requeueWebhookReceipt,
+  resolveOperationalException,
   searchAdminPortal,
   updateAdminTask,
   type AdminOrganization,
   type AdminTaskQuery,
   type WebhookReceipt,
+  type OperationalException,
 } from "./admin";
 
 export interface OrganizationContext extends AdminOrganization {}
@@ -77,6 +81,7 @@ export const adminPortalApi = {
   },
 
   integrationHealth: getIntegrationHealth,
+  webhookConfiguration: getWebhookConfiguration,
 
   async webhookReceipts(
     query: { provider?: string; status?: string; limit?: number },
@@ -90,6 +95,21 @@ export const adminPortalApi = {
     organizationId?: string,
   ) {
     return requeueWebhookReceipt(receiptId, organizationId);
+  },
+
+  async operationalExceptions(
+    query: { status?: string; limit?: number },
+    organizationId?: string,
+  ): Promise<{ items: OperationalException[] }> {
+    return { items: await listOperationalExceptions(query, organizationId) };
+  },
+
+  resolveOperationalException(
+    exceptionId: string,
+    resolution: string,
+    organizationId?: string,
+  ) {
+    return resolveOperationalException(exceptionId, resolution, organizationId);
   },
 
   async organizations(

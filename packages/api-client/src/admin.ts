@@ -245,6 +245,37 @@ export interface CrmDeliverySummary {
   moneybee_intake_id: string | null;
 }
 
+export interface OperationalException {
+  id: string;
+  code: string;
+  severity: string;
+  status: string;
+  owner_subject: string | null;
+  sla_due_at: string | null;
+  resource_type: string | null;
+  resource_id: string | null;
+  correlation_id: string | null;
+  retry_action: string | null;
+  resolution: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export interface OperationalExceptionResolution {
+  id: string;
+  status: string;
+  resolution: string | null;
+}
+
+export interface WebhookConfiguration {
+  signature_algorithm: string;
+  timestamp_tolerance_seconds: number;
+  providers: Array<{
+    provider: string;
+    configured: boolean;
+  }>;
+}
+
 export async function getAdminOperationsWorkspace(
   organizationId?: string,
 ): Promise<AdminOperationsWorkspace> {
@@ -440,5 +471,38 @@ export function requeueCrmDelivery(
       method: "POST",
       body: JSON.stringify({ reason }),
     }),
+  );
+}
+
+export function listOperationalExceptions(
+  query: { status?: string; limit?: number } = {},
+  organizationId?: string,
+): Promise<OperationalException[]> {
+  return api<OperationalException[]>(
+    `${ENDPOINTS.admin.operationalExceptions}${queryString(query)}`,
+    withOrganization(organizationId),
+  );
+}
+
+export function resolveOperationalException(
+  exceptionId: string,
+  resolution: string,
+  organizationId?: string,
+): Promise<OperationalExceptionResolution> {
+  return api<OperationalExceptionResolution>(
+    ENDPOINTS.admin.operationalExceptionResolve(exceptionId),
+    withOrganization(organizationId, {
+      method: "POST",
+      body: JSON.stringify({ resolution }),
+    }),
+  );
+}
+
+export function getWebhookConfiguration(
+  organizationId?: string,
+): Promise<WebhookConfiguration> {
+  return api<WebhookConfiguration>(
+    ENDPOINTS.admin.webhooksConfiguration,
+    withOrganization(organizationId),
   );
 }

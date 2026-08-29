@@ -53,6 +53,10 @@ export const ENDPOINTS = {
       `/applications/${encodeURIComponent(applicationId)}/conditions`,
     complaints: (applicationId: string) =>
       `/applications/${encodeURIComponent(applicationId)}/complaints`,
+    creditAuthorizations: (applicationId: string) =>
+      `/applications/${encodeURIComponent(applicationId)}/credit-authorizations`,
+    requirementSnapshots: (applicationId: string) =>
+      `/applications/${encodeURIComponent(applicationId)}/requirement-snapshots`,
     submit: (applicationId: string) =>
       `/applications/${encodeURIComponent(applicationId)}/submit`,
     funding: (applicationId: string) =>
@@ -88,6 +92,8 @@ export const ENDPOINTS = {
     submissions: "/lender/submissions",
     submissionWorkspace: (submissionId: string) =>
       `/lender/submissions/${encodeURIComponent(submissionId)}/workspace`,
+    submissionBankTransactions: (submissionId: string) =>
+      `/lender/submissions/${encodeURIComponent(submissionId)}/bank-transactions`,
     submissionAssignment: (submissionId: string) =>
       `/lender/submissions/${encodeURIComponent(submissionId)}/assignment`,
     submissionConditions: (submissionId: string) =>

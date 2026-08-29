@@ -130,6 +130,19 @@ export interface LenderPortfolio {
   submission_status_counts?: Record<string, number>;
 }
 
+export interface LenderBankTransaction {
+  id: string;
+  connection_id: string;
+  account_id: string | null;
+  amount: string | number;
+  currency: string;
+  description: string;
+  category: string | null;
+  transaction_type: string | null;
+  posted_at: string;
+  pending: boolean;
+}
+
 export function getLenderWorkspace(
   organizationId?: string | null,
 ): Promise<LenderWorkspaceResponse> {
@@ -202,6 +215,17 @@ export function recordLenderDecision(
       idempotencyKey,
       body: JSON.stringify(payload),
     }),
+  );
+}
+
+export function listLenderBankTransactions(
+  submissionId: string,
+  limit = 200,
+  organizationId?: string | null,
+): Promise<LenderBankTransaction[]> {
+  return api<LenderBankTransaction[]>(
+    `${ENDPOINTS.lender.submissionBankTransactions(submissionId)}${queryString({ limit })}`,
+    withOrganization(organizationId),
   );
 }
 

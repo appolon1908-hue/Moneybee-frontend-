@@ -16,6 +16,7 @@ const successMessage = ref('')
 const context = ref<PortalContext | null>(null)
 const workspace = ref<LenderWorkspace | null>(null)
 const bankQueue = ref<Array<Record<string, unknown>>>([])
+const bankTransactions = ref<Array<Record<string, unknown>>>([])
 const portfolio = ref<Record<string, unknown>>({})
 const selectedSubmissionId = ref('')
 const submissionWorkspace = ref<Record<string, unknown> | null>(null)
@@ -105,12 +106,21 @@ async function loadWorkspace(): Promise<void> {
 
 async function loadSubmissionWorkspace(): Promise<void> {
   submissionWorkspace.value = null
+  bankTransactions.value = []
   if (!selectedSubmissionId.value || !organizationId.value) return
   try {
-    submissionWorkspace.value = await lenderPortalApi.submissionWorkspace(
-      selectedSubmissionId.value,
-      organizationId.value,
-    )
+    const [workspace, transactions] = await Promise.all([
+      lenderPortalApi.submissionWorkspace(
+        selectedSubmissionId.value,
+        organizationId.value,
+      ),
+      lenderPortalApi.bankTransactions(
+        selectedSubmissionId.value,
+        organizationId.value,
+      ),
+    ])
+    submissionWorkspace.value = workspace
+    bankTransactions.value = transactions
   } catch (error) {
     errorMessage.value = describeError(error)
   }
@@ -320,58 +330,59 @@ onMounted(async () => {
           </label>
         </div>
 
-        <div v-if="selectedSubmissionId" class="review-grid">
-          <div class="review-summary">
-            <div>
-              <span>Status</span>
-              <strong>{{ text((submissionWorkspace?.submission as Record<string, unknown>) || {}, 'status', 'Pending') }}</strong>
+        <template v-if="selectedSubmissionId">
+          <div class="review-grid">
+            <div class="review-summary">
+              <div>
+                <span>Status</span>
+                <strong>{{ text((submissionWorkspace?.submission as Record<string, unknown>) || {}, 'status', 'Pending') }}</strong>
+              </div>
+              <div>
+                <span>Submitted</span>
+                <strong>{{ formatDate((submissionWorkspace?.submission as Record<string, unknown>)?.submitted_at) }}</strong>
+              </div>
+              <div>
+                <span>Offers</span>
+                <strong>{{ ((submissionWorkspace?.offers as unknown[]) || []).length }}</strong>
+              </div>
+              <div>
+                <span>Review tasks</span>
+                <strong>{{ ((submissionWorkspace?.tasks as unknown[]) || []).length }}</strong>
+              </div>
             </div>
-            <div>
-              <span>Submitted</span>
-              <strong>{{ formatDate((submissionWorkspace?.submission as Record<string, unknown>)?.submitted_at) }}</strong>
-            </div>
-            <div>
-              <span>Offers</span>
-              <strong>{{ ((submissionWorkspace?.offers as unknown[]) || []).length }}</strong>
-            </div>
-            <div>
-              <span>Review tasks</span>
-              <strong>{{ ((submissionWorkspace?.tasks as unknown[]) || []).length }}</strong>
-            </div>
-          </div>
 
-          <form class="decision-form" @submit.prevent="submitDecision">
-            <div>
-              <p class="eyebrow">Controlled decision</p>
-              <h3>Record a lender response</h3>
-              <p class="form-copy">
-                Decisions enter MoneyBee's review queue. This screen does not fund a loan or
-                bypass the authoritative workflow.
-              </p>
-            </div>
-            <label>
-              <span>Decision</span>
-              <select v-model="decision">
-                <option value="CONDITIONS">Request information</option>
-                <option value="APPROVE">Approve for review</option>
-                <option value="DECLINE">Decline</option>
-                <option value="FRAUD_REVIEW">Escalate fraud review</option>
-                <option value="COMPLIANCE_REVIEW">Escalate compliance review</option>
-              </select>
-            </label>
-            <label>
-              <span>Reason code</span>
-              <input v-model="decisionReason" maxlength="100" />
-            </label>
-            <label>
-              <span>Review notes</span>
-              <textarea v-model="decisionComments" rows="5" maxlength="10000" />
-            </label>
-            <button class="primary-button" type="submit" :disabled="actionPending">
-              Record decision
-            </button>
-          </form>
-        </div>
+            <form class="decision-form" @submit.prevent="submitDecision">
+              <div>
+                <p class="eyebrow">Controlled decision</p>
+                <h3>Record a lender response</h3>
+                <p class="form-copy">
+                  Decisions enter MoneyBee's review queue. This screen does not fund a loan or
+                  bypass the authoritative workflow.
+                </p>
+              </div>
+              <label>
+                <span>Decision</span>
+                <select v-model="decision">
+                  <option value="CONDITIONS">Request information</option>
+                  <option value="APPROVE">Approve for review</option>
+                  <option value="DECLINE">Decline</option>
+                  <option value="FRAUD_REVIEW">Escalate fraud review</option>
+                  <option value="COMPLIANCE_REVIEW">Escalate compliance review</option>
+                </select>
+              </label>
+              <label>
+                <span>Reason code</span>
+                <input v-model="decisionReason" maxlength="100" />
+              </label>
+              <label>
+                <span>Review notes</span>
+                <textarea v-model="decisionComments" rows="5" maxlength="10000" />
+              </label>
+              <button class="primary-button" type="submit" :disabled="actionPending">
+                Record decision
+              </button>
+            </form>
+          </div>
         <section v-if="submissionConditions.length" class="condition-review-list">
           <div class="section-heading compact-heading">
             <div>
@@ -417,6 +428,36 @@ onMounted(async () => {
             </div>
           </article>
         </section>
+        <section class="bank-transaction-panel">
+          <div class="section-heading compact-heading">
+            <div>
+              <p class="eyebrow">Bank evidence</p>
+              <h3>Recent transactions</h3>
+            </div>
+            <span class="count-badge">{{ bankTransactions.length }}</span>
+          </div>
+          <div v-if="bankTransactions.length" class="transaction-table" role="table" aria-label="Bank transactions">
+            <div class="transaction-row transaction-header" role="row">
+              <span>Date</span>
+              <span>Description</span>
+              <span>Category</span>
+              <span>Amount</span>
+            </div>
+            <div
+              v-for="transaction in bankTransactions.slice(0, 12)"
+              :key="text(transaction, 'id')"
+              class="transaction-row"
+              role="row"
+            >
+              <span>{{ formatDate(transaction.posted_at) }}</span>
+              <strong>{{ text(transaction, 'description') }}</strong>
+              <span>{{ text(transaction, 'category') }}</span>
+              <span>{{ formatMoney(transaction.amount) }}</span>
+            </div>
+          </div>
+          <p v-else class="empty-copy">No bank transactions are available for this submission.</p>
+        </section>
+        </template>
         <p v-else class="empty-copy">No lender submissions are available.</p>
       </section>
 
@@ -800,6 +841,36 @@ textarea {
 .condition-actions {
   display: flex;
   gap: 10px;
+}
+
+.bank-transaction-panel {
+  margin-top: 18px;
+}
+
+.transaction-table {
+  display: grid;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.transaction-row {
+  display: grid;
+  grid-template-columns: 140px minmax(220px, 1fr) 150px 120px;
+  align-items: center;
+  gap: 14px;
+  min-width: 720px;
+  padding: 13px 15px;
+  border-radius: 16px;
+  background: #f6f9fb;
+}
+
+.transaction-header {
+  background: transparent;
+  color: #6b7d90;
+  font-size: 0.76rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .field-row {

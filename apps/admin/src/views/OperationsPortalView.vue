@@ -6,13 +6,15 @@ import {
   portalApi,
   type AdminOperationsWorkspace,
   type OrganizationContext,
+  type OperationalException,
   type PortalContext,
   type PortalTask,
   type SearchResult,
+  type WebhookConfiguration,
   type WebhookReceipt,
 } from '@moneybee/api-client'
 
-type Tab = 'queue' | 'search' | 'integrations' | 'organizations' | 'audit'
+type Tab = 'queue' | 'search' | 'integrations' | 'exceptions' | 'organizations' | 'audit'
 
 const activeTab = ref<Tab>('queue')
 const loading = ref(true)
@@ -28,9 +30,13 @@ const searchQuery = ref('')
 const searchResults = ref<SearchResult[]>([])
 const searching = ref(false)
 const integrationHealth = ref<Record<string, unknown>>({})
+const webhookConfiguration = ref<WebhookConfiguration | null>(null)
 const webhookReceipts = ref<WebhookReceipt[]>([])
 const webhookProvider = ref('')
 const webhookStatus = ref('')
+const operationalExceptions = ref<OperationalException[]>([])
+const exceptionStatus = ref('OPEN')
+const exceptionResolution = ref<Record<string, string>>({})
 const organizations = ref<OrganizationContext[]>([])
 const organizationType = ref('')
 const selectedOrganizationId = ref('')
@@ -174,8 +180,9 @@ async function loadIntegrations(): Promise<void> {
   actionPending.value = true
   clearMessages()
   try {
-    const [health, receipts] = await Promise.all([
+    const [health, configuration, receipts] = await Promise.all([
       adminPortalApi.integrationHealth(organizationId.value),
+      adminPortalApi.webhookConfiguration(organizationId.value),
       adminPortalApi.webhookReceipts(
         {
           provider: webhookProvider.value || undefined,
@@ -186,7 +193,53 @@ async function loadIntegrations(): Promise<void> {
       ),
     ])
     integrationHealth.value = health
+    webhookConfiguration.value = configuration
     webhookReceipts.value = receipts.items
+  } catch (error) {
+    errorMessage.value = describeError(error)
+  } finally {
+    actionPending.value = false
+  }
+}
+
+async function loadExceptions(): Promise<void> {
+  if (!organizationId.value) return
+  actionPending.value = true
+  clearMessages()
+  try {
+    const response = await adminPortalApi.operationalExceptions(
+      {
+        status: exceptionStatus.value || undefined,
+        limit: 200,
+      },
+      organizationId.value,
+    )
+    operationalExceptions.value = response.items
+  } catch (error) {
+    errorMessage.value = describeError(error)
+  } finally {
+    actionPending.value = false
+  }
+}
+
+async function resolveException(exception: OperationalException): Promise<void> {
+  if (!organizationId.value) return
+  const resolution = exceptionResolution.value[exception.id]?.trim()
+  if (!resolution || resolution.length < 5) {
+    errorMessage.value = 'Add a resolution note before resolving the exception.'
+    return
+  }
+  actionPending.value = true
+  clearMessages()
+  try {
+    await adminPortalApi.resolveOperationalException(
+      exception.id,
+      resolution,
+      organizationId.value,
+    )
+    successMessage.value = 'Operational exception resolved and audited.'
+    exceptionResolution.value[exception.id] = ''
+    await Promise.all([loadWorkspace(), loadExceptions(), loadAudit(true)])
   } catch (error) {
     errorMessage.value = describeError(error)
   } finally {
@@ -276,6 +329,9 @@ async function selectTab(tab: Tab): Promise<void> {
   if (tab === 'integrations' && webhookReceipts.value.length === 0) {
     await loadIntegrations()
   }
+  if (tab === 'exceptions' && operationalExceptions.value.length === 0) {
+    await loadExceptions()
+  }
   if (tab === 'organizations' && organizations.value.length === 0) {
     await loadOrganizations()
   }
@@ -335,6 +391,7 @@ onMounted(loadWorkspace)
         <button :class="{ active: activeTab === 'queue' }" type="button" @click="selectTab('queue')">Work queue</button>
         <button :class="{ active: activeTab === 'search' }" type="button" @click="selectTab('search')">Global search</button>
         <button :class="{ active: activeTab === 'integrations' }" type="button" @click="selectTab('integrations')">Integrations</button>
+        <button :class="{ active: activeTab === 'exceptions' }" type="button" @click="selectTab('exceptions')">Exceptions</button>
         <button :class="{ active: activeTab === 'organizations' }" type="button" @click="selectTab('organizations')">Organizations</button>
         <button :class="{ active: activeTab === 'audit' }" type="button" @click="selectTab('audit')">Audit</button>
       </nav>
@@ -435,6 +492,21 @@ onMounted(loadWorkspace)
             <button class="text-button" type="button" :disabled="actionPending" @click="loadIntegrations">Refresh</button>
           </div>
           <pre class="health-panel">{{ JSON.stringify(integrationHealth, null, 2) }}</pre>
+          <div v-if="webhookConfiguration" class="webhook-config">
+            <div>
+              <span>Signature</span>
+              <strong>{{ webhookConfiguration.signature_algorithm }}</strong>
+              <small>{{ webhookConfiguration.timestamp_tolerance_seconds }}s timestamp tolerance</small>
+            </div>
+            <article
+              v-for="provider in webhookConfiguration.providers"
+              :key="provider.provider"
+              class="provider-config-card"
+            >
+              <span>{{ provider.provider }}</span>
+              <strong>{{ provider.configured ? 'Configured' : 'Missing secret' }}</strong>
+            </article>
+          </div>
         </article>
 
         <article class="panel">
@@ -479,6 +551,56 @@ onMounted(loadWorkspace)
           </div>
           <p v-else class="empty-copy">No webhook receipts match the selected filters.</p>
         </article>
+      </section>
+
+      <section v-else-if="activeTab === 'exceptions'" class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Recovery work</p>
+            <h2>Operational exceptions</h2>
+          </div>
+          <form class="filter-row" @submit.prevent="loadExceptions">
+            <select v-model="exceptionStatus" aria-label="Filter exceptions by status">
+              <option value="">All statuses</option>
+              <option value="OPEN">Open</option>
+              <option value="RESOLVED">Resolved</option>
+            </select>
+            <button class="primary-button" type="submit" :disabled="actionPending">Apply</button>
+          </form>
+        </div>
+        <div v-if="operationalExceptions.length" class="exception-list">
+          <article
+            v-for="exception in operationalExceptions"
+            :key="exception.id"
+            class="exception-card"
+          >
+            <div class="exception-copy">
+              <span>{{ exception.severity }} · {{ exception.status }}</span>
+              <strong>{{ exception.code }}</strong>
+              <small>
+                {{ exception.resource_type || 'resource' }} · {{ exception.resource_id || 'none' }} ·
+                {{ formatDate(exception.created_at) }}
+              </small>
+              <p v-if="exception.resolution">{{ exception.resolution }}</p>
+            </div>
+            <form
+              v-if="exception.status !== 'RESOLVED'"
+              class="exception-resolution-form"
+              @submit.prevent="resolveException(exception)"
+            >
+              <textarea
+                v-model="exceptionResolution[exception.id]"
+                rows="3"
+                maxlength="10000"
+                placeholder="Resolution note and evidence"
+              />
+              <button class="primary-button" type="submit" :disabled="actionPending">
+                Resolve
+              </button>
+            </form>
+          </article>
+        </div>
+        <p v-else class="empty-copy">No operational exceptions match the selected filters.</p>
       </section>
 
       <section v-else-if="activeTab === 'organizations'" class="content-grid organizations-grid">
@@ -758,7 +880,8 @@ h2 {
 }
 
 select,
-input {
+input,
+textarea {
   min-height: 44px;
   box-sizing: border-box;
   padding: 0 13px;
@@ -767,6 +890,11 @@ input {
   background: #fff;
   color: #142440;
   font: inherit;
+}
+
+textarea {
+  padding-top: 11px;
+  resize: vertical;
 }
 
 .primary-button,
@@ -882,6 +1010,8 @@ button:disabled {
 
 .search-card span,
 .receipt-card span,
+.exception-card span,
+.webhook-config span,
 .organization-list span {
   color: #c55b18;
   font-size: 0.72rem;
@@ -892,6 +1022,8 @@ button:disabled {
 
 .search-card small,
 .receipt-card small,
+.exception-card small,
+.webhook-config small,
 .organization-list small,
 .member-list small,
 .audit-list small {
@@ -914,7 +1046,24 @@ button:disabled {
   line-height: 1.6;
 }
 
+.webhook-config {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.webhook-config > div,
+.provider-config-card {
+  display: grid;
+  gap: 6px;
+  padding: 15px 16px;
+  border-radius: 16px;
+  background: #f7f9fc;
+}
+
 .receipt-list,
+.exception-list,
 .organization-list,
 .member-list,
 .audit-list {
@@ -923,6 +1072,7 @@ button:disabled {
 }
 
 .receipt-card,
+.exception-card,
 .member-list article,
 .audit-list article {
   display: flex;
@@ -935,9 +1085,28 @@ button:disabled {
 }
 
 .receipt-card div,
+.exception-copy,
 .audit-list div {
   display: grid;
   gap: 5px;
+}
+
+.exception-card {
+  align-items: stretch;
+}
+
+.exception-copy p {
+  margin: 6px 0 0;
+  color: #647187;
+  line-height: 1.5;
+}
+
+.exception-resolution-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  min-width: min(520px, 100%);
 }
 
 .organization-list button {
