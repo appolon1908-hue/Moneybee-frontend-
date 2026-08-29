@@ -6,6 +6,10 @@ const nginxConf = readFileSync(
   resolve(process.cwd(), "nginx.conf"),
   "utf8",
 )
+const caddyfile = readFileSync(
+  resolve(process.cwd(), "deploy", "Caddyfile.moneybee"),
+  "utf8",
+)
 
 describe("nginx security headers", () => {
   const requiredHeaders = [
@@ -68,6 +72,58 @@ describe("nginx security headers", () => {
       )
     for (const line of headerLines) {
       expect(line, `Header line missing always: ${line}`).toContain("always")
+    }
+  })
+})
+
+describe("MoneyBee Caddy edge security headers", () => {
+  const frontendHosts = [
+    "moneybeeloan.com",
+    "www.moneybeeloan.com",
+    "app.moneybeeloan.com",
+    "lenders.moneybeeloan.com",
+    "lender.moneybeeloan.com",
+    "admin.moneybeeloan.com",
+  ]
+
+  function blockFor(host) {
+    const pattern = new RegExp(`${host.replaceAll(".", "\\.")} \\{[\\s\\S]*?\\n\\}`, "m")
+    const match = caddyfile.match(pattern)
+    expect(match, `${host} block missing`).toBeTruthy()
+    return match?.[0] || ""
+  }
+
+  it("defines strict frontend and API CSP snippets", () => {
+    expect(caddyfile).toContain("(moneybee_frontend_security)")
+    expect(caddyfile).toContain("(moneybee_api_security)")
+    expect(caddyfile).toContain("Strict-Transport-Security")
+    expect(caddyfile).toContain("Content-Security-Policy")
+  })
+
+  for (const host of frontendHosts) {
+    it(`${host} imports frontend security`, () => {
+      expect(blockFor(host)).toContain("import moneybee_frontend_security")
+    })
+  }
+
+  it("api.moneybeeloan.com imports API security", () => {
+    expect(blockFor("api.moneybeeloan.com")).toContain("import moneybee_api_security")
+  })
+
+  it("API CSP blocks script, style, font, image, frame, object, form, and base access", () => {
+    const apiSnippet = caddyfile.match(/\(moneybee_api_security\) \{[\s\S]*?\n\}/m)?.[0] || ""
+    for (const directive of [
+      "default-src 'none'",
+      "base-uri 'none'",
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+      "form-action 'none'",
+      "img-src 'none'",
+      "font-src 'none'",
+      "style-src 'none'",
+      "script-src 'none'",
+    ]) {
+      expect(apiSnippet).toContain(directive)
     }
   })
 })

@@ -18,6 +18,16 @@
     }
 }
 
+(moneybee_api_security) {
+    import moneybee_hsts
+    header {
+        Content-Security-Policy "default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'none'; connect-src 'self'; img-src 'none'; font-src 'none'; style-src 'none'; script-src 'none'; upgrade-insecure-requests"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+    }
+}
+
 moneybeeloan.com {
     encode zstd gzip
     import moneybee_frontend_security
@@ -25,7 +35,7 @@ moneybeeloan.com {
 }
 
 www.moneybeeloan.com {
-    import moneybee_hsts
+    import moneybee_frontend_security
     redir https://moneybeeloan.com{uri} permanent
 }
 
@@ -43,7 +53,7 @@ lenders.moneybeeloan.com {
 
 # Compatibility redirect while the historical singular DNS record exists.
 lender.moneybeeloan.com {
-    import moneybee_hsts
+    import moneybee_frontend_security
     redir https://lenders.moneybeeloan.com{uri} permanent
 }
 
@@ -55,6 +65,6 @@ admin.moneybeeloan.com {
 
 api.moneybeeloan.com {
     encode zstd gzip
-    import moneybee_hsts
+    import moneybee_api_security
     reverse_proxy moneybee-api:8000
 }
