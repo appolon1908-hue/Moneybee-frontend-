@@ -1,4 +1,5 @@
 import { api } from "./core";
+import { ENDPOINTS } from "./endpoints";
 import {
   queryString,
   withOrganization,
@@ -291,13 +292,13 @@ export async function getBorrowerWorkspace(
 ): Promise<BorrowerWorkspace> {
   const options = withOrganization(organizationId);
   const [overview, taskRows, notificationRows, conversationRows] = await Promise.all([
-    api<BorrowerOverviewWire>("/borrower/overview", options),
-    api<PortalTaskWire[]>("/borrower/tasks?limit=200", options),
+    api<BorrowerOverviewWire>(ENDPOINTS.borrower.overview, options),
+    api<PortalTaskWire[]>(`${ENDPOINTS.borrower.tasks}?limit=200`, options),
     api<NotificationWire[]>(
-      "/borrower/notifications?unread_only=true&limit=200",
+      `${ENDPOINTS.borrower.notifications}?unread_only=true&limit=200`,
       options,
     ),
-    api<ConversationWire[]>("/borrower/conversations", options),
+    api<ConversationWire[]>(ENDPOINTS.borrower.conversations, options),
   ]);
   const applications = overview.applications.map((row) =>
     normalizeApplication(row, organizationId),
@@ -333,18 +334,18 @@ export async function getBorrowerApplicationWorkspace(
   const options = withOrganization(organizationId);
   const [applicationWire, offers, documents, taskRows] = await Promise.all([
     api<BorrowerApplicationWire>(
-      `/applications/${encodeURIComponent(applicationId)}`,
+      ENDPOINTS.applications.item(applicationId),
       options,
     ),
     api<Array<Record<string, unknown>>>(
-      `/applications/${encodeURIComponent(applicationId)}/offers`,
+      ENDPOINTS.applications.offers(applicationId),
       options,
     ),
     api<Array<Record<string, unknown>>>(
-      `/borrower/applications/${encodeURIComponent(applicationId)}/documents`,
+      ENDPOINTS.borrower.applicationDocuments(applicationId),
       options,
     ),
-    api<PortalTaskWire[]>("/borrower/tasks?limit=200", options),
+    api<PortalTaskWire[]>(`${ENDPOINTS.borrower.tasks}?limit=200`, options),
   ]);
   const tasks = taskRows
     .filter((row) => row.application_id === applicationId)
@@ -375,7 +376,7 @@ export async function updateBorrowerTask(
 ): Promise<PortalTask> {
   const normalized = status === "CANCELLED" ? "DISMISSED" : status;
   const row = await api<PortalTaskWire>(
-    `/borrower/tasks/${encodeURIComponent(taskId)}`,
+    ENDPOINTS.borrower.task(taskId),
     withOrganization(organizationId, {
       method: "PATCH",
       body: JSON.stringify({ status: normalized }),
@@ -389,7 +390,7 @@ export async function listBorrowerMessages(
   organizationId?: string,
 ): Promise<PortalMessage[]> {
   const rows = await api<MessageWire[]>(
-    `/borrower/conversations/${encodeURIComponent(conversationId)}/messages`,
+    ENDPOINTS.borrower.conversationMessages(conversationId),
     withOrganization(organizationId),
   );
   return rows.map(normalizeMessage);
@@ -400,7 +401,7 @@ export async function createBorrowerConversation(
   organizationId?: string,
 ): Promise<PortalConversation> {
   const row = await api<ConversationWire>(
-    "/borrower/conversations",
+    ENDPOINTS.borrower.conversations,
     withOrganization(organizationId, {
       method: "POST",
       body: JSON.stringify(payload),
@@ -415,7 +416,7 @@ export async function createBorrowerMessage(
   organizationId?: string,
 ): Promise<PortalMessage> {
   const row = await api<MessageWire>(
-    `/borrower/conversations/${encodeURIComponent(conversationId)}/messages`,
+    ENDPOINTS.borrower.conversationMessages(conversationId),
     withOrganization(organizationId, {
       method: "POST",
       body: JSON.stringify(payload),
@@ -430,7 +431,7 @@ export function createBorrowerUploadSession(
   organizationId?: string,
 ): Promise<UploadSession> {
   return api<UploadSession>(
-    `/borrower/applications/${encodeURIComponent(applicationId)}/documents/upload-sessions`,
+    ENDPOINTS.borrower.applicationUploadSessions(applicationId),
     withOrganization(organizationId, {
       method: "POST",
       body: JSON.stringify(payload),
@@ -444,7 +445,7 @@ export function completeBorrowerUploadSession(
   organizationId?: string,
 ): Promise<CompletedUpload> {
   return api<CompletedUpload>(
-    `/borrower/document-upload-sessions/${encodeURIComponent(sessionId)}/complete`,
+    ENDPOINTS.borrower.uploadSessionComplete(sessionId),
     withOrganization(organizationId, {
       method: "POST",
       body: JSON.stringify(payload),

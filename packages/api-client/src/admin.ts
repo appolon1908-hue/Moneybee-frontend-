@@ -1,4 +1,5 @@
 import { api } from "./core";
+import { ENDPOINTS } from "./endpoints";
 import {
   queryString,
   withOrganization,
@@ -248,7 +249,7 @@ export async function getAdminOperationsWorkspace(
   organizationId?: string,
 ): Promise<AdminOperationsWorkspace> {
   const wire = await api<AdminOperationsWorkspace & { work_queue: AdminTaskWire[] }>(
-    "/admin/workspace",
+    ENDPOINTS.admin.workspace,
     withOrganization(organizationId),
   );
   return { ...wire, work_queue: wire.work_queue.map(normalizeTask) };
@@ -260,7 +261,7 @@ export async function listAdminTasks(
 ): Promise<PageWire<PortalTask>> {
   const limit = Math.min(Math.max(query.limit || 100, 1), 200);
   const wire = await api<PageWire<AdminTaskWire>>(
-    `/admin/tasks${queryString({
+    `${ENDPOINTS.admin.tasks}${queryString({
       status: query.status,
       assignee_subject: query.assignee_subject,
       application_id: query.application_id,
@@ -280,7 +281,7 @@ export async function createAdminTask(
   organizationId?: string,
 ): Promise<PortalTask> {
   const row = await api<AdminTaskWire>(
-    "/admin/tasks",
+    ENDPOINTS.admin.tasks,
     withOrganization(organizationId, {
       method: "POST",
       body: JSON.stringify(payload),
@@ -296,7 +297,7 @@ export async function updateAdminTask(
 ): Promise<PortalTask> {
   const { version: _version, ...body } = payload;
   const row = await api<AdminTaskWire>(
-    `/admin/tasks/${encodeURIComponent(taskId)}`,
+    ENDPOINTS.admin.task(taskId),
     withOrganization(organizationId, {
       method: "PATCH",
       body: JSON.stringify(body),
@@ -310,7 +311,7 @@ export function searchAdminPortal(
   organizationId?: string,
 ): Promise<AdminSearchResult[]> {
   return api<AdminSearchResult[]>(
-    `/admin/search${queryString({ q: query, limit: 50 })}`,
+    `${ENDPOINTS.admin.search}${queryString({ q: query, limit: 50 })}`,
     withOrganization(organizationId),
   );
 }
@@ -327,7 +328,7 @@ export function listAdminAuditEvents(
   organizationId?: string,
 ): Promise<PageWire<Record<string, unknown>>> {
   return api<PageWire<Record<string, unknown>>>(
-    `/admin/audit-events${queryString(query)}`,
+    `${ENDPOINTS.admin.auditEvents}${queryString(query)}`,
     withOrganization(organizationId),
   );
 }
@@ -337,7 +338,7 @@ export function listAdminOrganizations(
   organizationId?: string,
 ): Promise<AdminOrganization[]> {
   return api<AdminOrganization[]>(
-    `/admin/organizations${queryString({
+    `${ENDPOINTS.admin.organizations}${queryString({
       ...query,
       limit: Math.min(Math.max(query.limit || 100, 1), 200),
     })}`,
@@ -350,7 +351,7 @@ export function listAdminOrganizationMembers(
   organizationId?: string,
 ): Promise<AdminOrganizationMember[]> {
   return api<AdminOrganizationMember[]>(
-    `/admin/organizations/${encodeURIComponent(targetOrganizationId)}/members`,
+    ENDPOINTS.admin.organizationMembers(targetOrganizationId),
     withOrganization(organizationId),
   );
 }
@@ -359,7 +360,7 @@ export function getIntegrationHealth(
   organizationId?: string,
 ): Promise<Record<string, unknown>> {
   return api<Record<string, unknown>>(
-    "/admin/integration-control-plane",
+    ENDPOINTS.admin.integrationControlPlane,
     withOrganization(organizationId),
   );
 }
@@ -369,7 +370,7 @@ export async function listWebhookReceipts(
   organizationId?: string,
 ): Promise<WebhookReceipt[]> {
   const rows = await api<WebhookReceiptWire[]>(
-    `/admin/webhook-receipts${queryString({
+    `${ENDPOINTS.admin.webhookReceipts}${queryString({
       ...query,
       limit: Math.min(Math.max(query.limit || 100, 1), 200),
     })}`,
@@ -383,7 +384,7 @@ export function requeueWebhookReceipt(
   organizationId?: string,
 ): Promise<{ id: string; status: string; inbox_status: string }> {
   return api<{ id: string; status: string; inbox_status: string }>(
-    `/admin/webhook-receipts/${encodeURIComponent(receiptId)}/requeue`,
+    ENDPOINTS.admin.webhookReceiptRequeue(receiptId),
     withOrganization(organizationId, { method: "POST" }),
   );
 }
@@ -393,7 +394,7 @@ export function listPublicIntakes(
   organizationId?: string,
 ): Promise<PublicIntakeSummary[]> {
   return api<PublicIntakeSummary[]>(
-    `/admin/public-intakes${queryString(query)}`,
+    `${ENDPOINTS.admin.publicIntakes}${queryString(query)}`,
     withOrganization(organizationId),
   );
 }
@@ -403,7 +404,7 @@ export function getPublicIntake(
   organizationId?: string,
 ): Promise<PublicIntakeDetail> {
   return api<PublicIntakeDetail>(
-    `/admin/public-intakes/${encodeURIComponent(intakeId)}`,
+    ENDPOINTS.admin.publicIntake(intakeId),
     withOrganization(organizationId),
   );
 }
@@ -413,7 +414,7 @@ export function listCrmDeliveries(
   organizationId?: string,
 ): Promise<CrmDeliverySummary[]> {
   return api<CrmDeliverySummary[]>(
-    `/admin/crm-deliveries${queryString(query)}`,
+    `${ENDPOINTS.admin.crmDeliveries}${queryString(query)}`,
     withOrganization(organizationId),
   );
 }
@@ -423,7 +424,7 @@ export function getCrmDelivery(
   organizationId?: string,
 ): Promise<CrmDeliverySummary> {
   return api<CrmDeliverySummary>(
-    `/admin/crm-deliveries/${encodeURIComponent(deliveryId)}`,
+    ENDPOINTS.admin.crmDelivery(deliveryId),
     withOrganization(organizationId),
   );
 }
@@ -434,7 +435,7 @@ export function requeueCrmDelivery(
   organizationId?: string,
 ): Promise<CrmDeliverySummary> {
   return api<CrmDeliverySummary>(
-    `/admin/crm-deliveries/${encodeURIComponent(deliveryId)}/requeue`,
+    ENDPOINTS.admin.crmDeliveryRequeue(deliveryId),
     withOrganization(organizationId, {
       method: "POST",
       body: JSON.stringify({ reason }),

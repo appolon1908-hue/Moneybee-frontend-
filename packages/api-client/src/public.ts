@@ -1,4 +1,5 @@
 import { api } from "./core"
+import { ENDPOINTS } from "./endpoints"
 
 export interface MarketingAttribution {
   landing_page: string
@@ -138,40 +139,40 @@ export function submitPrequalification(
   payload: PrequalificationInput,
   idempotencyKey: string,
 ): Promise<LeadAccepted> {
-  return submit<LeadAccepted, PrequalificationInput>("/public/prequalifications", payload, idempotencyKey)
+  return submit<LeadAccepted, PrequalificationInput>(ENDPOINTS.public.prequalifications, payload, idempotencyKey)
 }
 
 export function submitContactRequest(
   payload: ContactRequestInput,
   idempotencyKey: string,
 ): Promise<PublicIntakeAccepted> {
-  return submit<PublicIntakeAccepted, ContactRequestInput>("/public/contact-requests", payload, idempotencyKey)
+  return submit<PublicIntakeAccepted, ContactRequestInput>(ENDPOINTS.public.contactRequests, payload, idempotencyKey)
 }
 
 export function submitCallbackRequest(
   payload: CallbackRequestInput,
   idempotencyKey: string,
 ): Promise<PublicIntakeAccepted> {
-  return submit<PublicIntakeAccepted, CallbackRequestInput>("/public/callback-requests", payload, idempotencyKey)
+  return submit<PublicIntakeAccepted, CallbackRequestInput>(ENDPOINTS.public.callbackRequests, payload, idempotencyKey)
 }
 
 export function submitLenderPartnerInquiry(
   payload: LenderPartnerInquiryInput,
   idempotencyKey: string,
 ): Promise<PublicIntakeAccepted> {
-  return submit<PublicIntakeAccepted, LenderPartnerInquiryInput>("/public/lender-partner-inquiries", payload, idempotencyKey)
+  return submit<PublicIntakeAccepted, LenderPartnerInquiryInput>(ENDPOINTS.public.lenderPartnerInquiries, payload, idempotencyKey)
 }
 
 export function submitReferralPartnerInquiry(
   payload: ReferralPartnerInquiryInput,
   idempotencyKey: string,
 ): Promise<PublicIntakeAccepted> {
-  return submit<PublicIntakeAccepted, ReferralPartnerInquiryInput>("/public/referral-partner-inquiries", payload, idempotencyKey)
+  return submit<PublicIntakeAccepted, ReferralPartnerInquiryInput>(ENDPOINTS.public.referralPartnerInquiries, payload, idempotencyKey)
 }
 
 export function submitDealSubmissionInquiry(
   payload: DealSubmissionInquiryInput,
   idempotencyKey: string,
 ): Promise<PublicIntakeAccepted> {
-  return submit<PublicIntakeAccepted, DealSubmissionInquiryInput>("/public/deal-submission-inquiries", payload, idempotencyKey)
+  return submit<PublicIntakeAccepted, DealSubmissionInquiryInput>(ENDPOINTS.public.dealSubmissionInquiries, payload, idempotencyKey)
 }

@@ -1,4 +1,5 @@
 import { api } from "./core"
+import { ENDPOINTS } from "./endpoints"
 
 export type BankAccount = {
   id: string
@@ -34,14 +35,14 @@ export type LinkSession = {
 export const bankingApi = {
   createLinkSession(applicationId: string) {
     return api<LinkSession>(
-      `/applications/${applicationId}/bank/link-session`,
+      ENDPOINTS.applications.bankLinkSession(applicationId),
       {method: "POST"},
     )
   },
 
   exchange(applicationId: string, publicToken: string) {
     return api(
-      `/applications/${applicationId}/bank/exchange`,
+      ENDPOINTS.applications.bankExchange(applicationId),
       {
         method: "POST",
         body: JSON.stringify({public_token: publicToken}),
@@ -51,20 +52,20 @@ export const bankingApi = {
 
   sync(applicationId: string) {
     return api(
-      `/applications/${applicationId}/bank/sync`,
+      ENDPOINTS.applications.bankSync(applicationId),
       {method: "POST"},
     )
   },
 
   accounts(applicationId: string) {
     return api<BankAccount[]>(
-      `/applications/${applicationId}/bank/accounts`,
+      ENDPOINTS.applications.bankAccounts(applicationId),
     )
   },
 
   analysis(applicationId: string) {
     return api<BankAnalysis | null>(
-      `/applications/${applicationId}/bank/analysis`,
+      ENDPOINTS.applications.bankAnalysis(applicationId),
     )
   },
 }

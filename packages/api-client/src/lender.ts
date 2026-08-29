@@ -1,4 +1,5 @@
 import { api } from "./core";
+import { ENDPOINTS } from "./endpoints";
 import { queryString, withOrganization, type PortalTask } from "./portal";
 
 export interface LenderSubmissionSummary {
@@ -97,7 +98,7 @@ export function getLenderWorkspace(
   organizationId?: string | null,
 ): Promise<LenderWorkspaceResponse> {
   return api<LenderWorkspaceResponse>(
-    "/lender/workspace",
+    ENDPOINTS.lender.workspace,
     withOrganization(organizationId),
   );
 }
@@ -107,7 +108,7 @@ export function listLenderPrograms(
   organizationId?: string | null,
 ): Promise<LenderProgram[]> {
   return api<LenderProgram[]>(
-    `/lender/programs${queryString({ active })}`,
+    `${ENDPOINTS.lender.programs}${queryString({ active })}`,
     withOrganization(organizationId),
   );
 }
@@ -119,7 +120,7 @@ export function updateLenderProgram(
   organizationId?: string | null,
 ): Promise<LenderProgram> {
   return api<LenderProgram>(
-    `/lender/programs/${encodeURIComponent(programId)}`,
+    ENDPOINTS.lender.program(programId),
     withOrganization(organizationId, {
       method: "PATCH",
       expectedVersion: version,
@@ -133,7 +134,7 @@ export function getLenderSubmissionWorkspace(
   organizationId?: string | null,
 ): Promise<LenderSubmissionWorkspace> {
   return api<LenderSubmissionWorkspace>(
-    `/lender/submissions/${encodeURIComponent(submissionId)}/workspace`,
+    ENDPOINTS.lender.submissionWorkspace(submissionId),
     withOrganization(organizationId),
   );
 }
@@ -144,7 +145,7 @@ export function assignLenderSubmission(
   organizationId?: string | null,
 ): Promise<LenderSubmissionSummary> {
   return api<LenderSubmissionSummary>(
-    `/lender/submissions/${encodeURIComponent(submissionId)}/assignment`,
+    ENDPOINTS.lender.submissionAssignment(submissionId),
     withOrganization(organizationId, {
       method: "PATCH",
       body: JSON.stringify({ assigned_to_subject: assignedToSubject }),
@@ -159,7 +160,7 @@ export function recordLenderDecision(
   organizationId?: string | null,
 ): Promise<LenderDecisionResult> {
   return api<LenderDecisionResult>(
-    `/lender/submissions/${encodeURIComponent(submissionId)}/decisions`,
+    ENDPOINTS.lender.submissionDecisions(submissionId),
     withOrganization(organizationId, {
       method: "POST",
       idempotencyKey,
@@ -173,7 +174,7 @@ export function listBankAnalysisQueue(
   organizationId?: string | null,
 ): Promise<BankAnalysisQueueItem[]> {
   return api<BankAnalysisQueueItem[]>(
-    `/lender/bank-review-queue${queryString({ status })}`,
+    `${ENDPOINTS.lender.bankReviewQueue}${queryString({ status })}`,
     withOrganization(organizationId),
   );
 }
@@ -182,7 +183,7 @@ export function getLenderPortfolio(
   organizationId?: string | null,
 ): Promise<LenderPortfolio> {
   return api<LenderPortfolio>(
-    "/lender/portfolio",
+    ENDPOINTS.lender.portfolio,
     withOrganization(organizationId),
   );
 }

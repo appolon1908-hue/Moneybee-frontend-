@@ -1,4 +1,5 @@
 export * from "./core"
+export * from "./endpoints"
 export * from "./portal"
 export * from "./borrower"
 export * from "./lender"

@@ -1,4 +1,5 @@
 import { api, type ApiOptions } from "./core";
+import { ENDPOINTS } from "./endpoints";
 
 export type PortalTaskStatus =
   | "OPEN"
@@ -194,7 +195,7 @@ export async function getPortalNavigation(
   portal: AuthContext["portal"] = "UNKNOWN",
 ): Promise<NavigationItem[]> {
   const rows = await api<NavigationItemWire[]>(
-    "/portal/navigation",
+    ENDPOINTS.identity.portalNavigation,
     withOrganization(organizationId),
   );
   const portalName = portal.toLowerCase() as NavigationItem["portal"];
@@ -211,7 +212,7 @@ export async function getAuthContext(
   organizationId?: string | null,
 ): Promise<AuthContext> {
   const wire = await api<AuthContextWire>(
-    "/auth/context",
+    ENDPOINTS.identity.context,
     withOrganization(organizationId),
   );
   const activeOrganizationId = wire.active_organization_id || "";
@@ -237,7 +238,7 @@ export function listPortalTasks(
   organizationId?: string,
 ): Promise<PortalTask[]> {
   return api<PortalTask[]>(
-    `/borrower/tasks${queryString(query)}`,
+    `${ENDPOINTS.borrower.tasks}${queryString(query)}`,
     withOrganization(organizationId),
   );
 }
@@ -248,7 +249,7 @@ export function updatePortalTask(
   organizationId?: string,
 ): Promise<PortalTask> {
   return api<PortalTask>(
-    `/borrower/tasks/${encodeURIComponent(taskId)}`,
+    ENDPOINTS.borrower.task(taskId),
     withOrganization(organizationId, {
       method: "PATCH",
       body: JSON.stringify(payload),
@@ -261,7 +262,7 @@ export function listPortalNotifications(
   organizationId?: string,
 ): Promise<PortalNotification[]> {
   return api<PortalNotification[]>(
-    `/borrower/notifications${queryString({ unread_only: unreadOnly })}`,
+    `${ENDPOINTS.borrower.notifications}${queryString({ unread_only: unreadOnly })}`,
     withOrganization(organizationId),
   );
 }
@@ -271,7 +272,7 @@ export function markPortalNotificationRead(
   organizationId?: string,
 ): Promise<PortalNotification> {
   return api<PortalNotification>(
-    `/borrower/notifications/${encodeURIComponent(notificationId)}/read`,
+    ENDPOINTS.borrower.notificationRead(notificationId),
     withOrganization(organizationId, { method: "POST" }),
   );
 }
@@ -281,7 +282,7 @@ export function listPortalConversations(
   organizationId?: string,
 ): Promise<PortalConversation[]> {
   return api<PortalConversation[]>(
-    `/borrower/conversations${queryString({ status })}`,
+    `${ENDPOINTS.borrower.conversations}${queryString({ status })}`,
     withOrganization(organizationId),
   );
 }
@@ -291,7 +292,7 @@ export function createPortalConversation(
   organizationId?: string,
 ): Promise<PortalConversation> {
   return api<PortalConversation>(
-    "/borrower/conversations",
+    ENDPOINTS.borrower.conversations,
     withOrganization(organizationId, {
       method: "POST",
       body: JSON.stringify(payload),
@@ -304,7 +305,7 @@ export function listPortalMessages(
   organizationId?: string,
 ): Promise<PortalMessage[]> {
   return api<PortalMessage[]>(
-    `/borrower/conversations/${encodeURIComponent(conversationId)}/messages`,
+    ENDPOINTS.borrower.conversationMessages(conversationId),
     withOrganization(organizationId),
   );
 }
@@ -315,7 +316,7 @@ export function createPortalMessage(
   organizationId?: string,
 ): Promise<PortalMessage> {
   return api<PortalMessage>(
-    `/borrower/conversations/${encodeURIComponent(conversationId)}/messages`,
+    ENDPOINTS.borrower.conversationMessages(conversationId),
     withOrganization(organizationId, {
       method: "POST",
       body: JSON.stringify(payload),

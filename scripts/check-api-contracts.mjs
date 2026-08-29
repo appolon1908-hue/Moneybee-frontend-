@@ -88,6 +88,8 @@ function frontendRoutes() {
     /submit<[^>]+>\(\s*["`]([^"`$]+)["`]/g,
     /api(?:Response)?<[^>]+>\(\s*`([^`]+)`/g,
     /api(?:Response)?\(\s*`([^`]+)`/g,
+    /:\s*["`]([^"`$]+)["`]/g,
+    /=>\s*`([^`]+)`/g,
   ]
   for (const pattern of patterns) {
     for (const match of combined.matchAll(pattern)) {
