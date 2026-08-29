@@ -13,6 +13,9 @@
         <RouterLink to="/verification">Verification</RouterLink>
         <RouterLink to="/conditions">Conditions</RouterLink>
         <RouterLink to="/offers">Funding offers</RouterLink>
+        <RouterLink to="/funding">Funding status</RouterLink>
+        <RouterLink to="/contracts">Contract</RouterLink>
+        <RouterLink to="/renewals">Renewals</RouterLink>
         <RouterLink to="/profile">Profile</RouterLink>
         <RouterLink to="/support">Support</RouterLink>
       </nav>

@@ -17,6 +17,9 @@ export const routes: RouteRecordRaw[] = [
   {path: "/owners", component: () => import("./views/OwnersView.vue")},
   {path: "/conditions", component: () => import("./views/ConditionsView.vue")},
   {path: "/offers", component: () => import("./views/OffersView.vue")},
+  {path: "/funding", component: () => import("./views/FundingView.vue")},
+  {path: "/contracts", component: () => import("./views/ContractsView.vue")},
+  {path: "/renewals", component: () => import("./views/RenewalsView.vue")},
   {
     path: "/documents",
     component: () => import("./views/CapabilityWorkflowView.vue"),
