@@ -242,6 +242,36 @@ export function createLenderSubmissionOffer(
   );
 }
 
+export function approveLenderCondition(
+  conditionId: string,
+  organizationId?: string | null,
+): Promise<LenderCondition> {
+  return api<LenderCondition>(
+    ENDPOINTS.lender.conditionApprove(conditionId),
+    withOrganization(organizationId, { method: "POST" }),
+  );
+}
+
+export function rejectLenderCondition(
+  conditionId: string,
+  organizationId?: string | null,
+): Promise<LenderCondition> {
+  return api<LenderCondition>(
+    ENDPOINTS.lender.conditionReject(conditionId),
+    withOrganization(organizationId, { method: "POST" }),
+  );
+}
+
+export function waiveLenderCondition(
+  conditionId: string,
+  organizationId?: string | null,
+): Promise<LenderCondition> {
+  return api<LenderCondition>(
+    ENDPOINTS.lender.conditionWaive(conditionId),
+    withOrganization(organizationId, { method: "POST" }),
+  );
+}
+
 export function listBankAnalysisQueue(
   status?: string,
   organizationId?: string | null,

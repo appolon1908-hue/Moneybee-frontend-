@@ -19,6 +19,9 @@ import {
   recordLenderDecision,
   createLenderSubmissionCondition,
   createLenderSubmissionOffer,
+  approveLenderCondition,
+  rejectLenderCondition,
+  waiveLenderCondition,
   updateLenderProgram,
   type LenderProgram,
   type LenderSubmissionSummary,
@@ -209,4 +212,7 @@ export const lenderPortalApi = {
 
   createCondition: createLenderSubmissionCondition,
   createOffer: createLenderSubmissionOffer,
+  approveCondition: approveLenderCondition,
+  rejectCondition: rejectLenderCondition,
+  waiveCondition: waiveLenderCondition,
 };

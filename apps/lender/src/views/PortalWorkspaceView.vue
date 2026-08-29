@@ -27,6 +27,9 @@ const organizationId = computed(() => context.value?.active_organization_id ?? n
 const programs = computed(() => workspace.value?.programs ?? [])
 const submissions = computed(() => workspace.value?.submissions ?? [])
 const offers = computed(() => workspace.value?.offers ?? [])
+const submissionConditions = computed(() =>
+  ((submissionWorkspace.value?.conditions as Array<Record<string, unknown>> | undefined) || []),
+)
 
 function text(record: Record<string, unknown>, key: string, fallback = '—'): string {
   const value = record[key]
@@ -160,6 +163,37 @@ async function submitDecision(): Promise<void> {
   } finally {
     actionPending.value = false
   }
+}
+
+async function reviewCondition(
+  condition: Record<string, unknown>,
+  action: 'approve' | 'reject' | 'waive',
+): Promise<void> {
+  if (!organizationId.value) return
+  actionPending.value = true
+  clearMessages()
+  try {
+    const conditionId = text(condition, 'id', '')
+    if (action === 'approve') {
+      await lenderPortalApi.approveCondition(conditionId, organizationId.value)
+    } else if (action === 'reject') {
+      await lenderPortalApi.rejectCondition(conditionId, organizationId.value)
+    } else {
+      await lenderPortalApi.waiveCondition(conditionId, organizationId.value)
+    }
+    successMessage.value = 'Condition review updated.'
+    await Promise.all([loadWorkspace(), loadSubmissionWorkspace()])
+  } catch (error) {
+    errorMessage.value = describeError(error)
+  } finally {
+    actionPending.value = false
+  }
+}
+
+function canReviewCondition(condition: Record<string, unknown>): boolean {
+  return ['SUBMITTED', 'BORROWER_ACTION_REQUIRED', 'REJECTED'].includes(
+    text(condition, 'status', ''),
+  )
 }
 
 watch(selectedSubmissionId, loadSubmissionWorkspace)
@@ -338,6 +372,51 @@ onMounted(async () => {
             </button>
           </form>
         </div>
+        <section v-if="submissionConditions.length" class="condition-review-list">
+          <div class="section-heading compact-heading">
+            <div>
+              <p class="eyebrow">Condition review</p>
+              <h3>Borrower requirements</h3>
+            </div>
+          </div>
+          <article
+            v-for="condition in submissionConditions"
+            :key="text(condition, 'id')"
+            class="condition-review-card"
+          >
+            <div>
+              <span>{{ text(condition, 'status') }}</span>
+              <strong>{{ text(condition, 'description') }}</strong>
+              <small>{{ formatDate(condition.created_at) }}</small>
+            </div>
+            <div class="condition-actions">
+              <button
+                class="text-button"
+                type="button"
+                :disabled="actionPending || !canReviewCondition(condition)"
+                @click="reviewCondition(condition, 'approve')"
+              >
+                Approve
+              </button>
+              <button
+                class="text-button"
+                type="button"
+                :disabled="actionPending || !canReviewCondition(condition)"
+                @click="reviewCondition(condition, 'reject')"
+              >
+                Reject
+              </button>
+              <button
+                class="text-button"
+                type="button"
+                :disabled="actionPending || !canReviewCondition(condition)"
+                @click="reviewCondition(condition, 'waive')"
+              >
+                Waive
+              </button>
+            </div>
+          </article>
+        </section>
         <p v-else class="empty-copy">No lender submissions are available.</p>
       </section>
 
@@ -679,6 +758,48 @@ textarea {
   padding: 24px;
   border-radius: 22px;
   background: #f3faf7;
+}
+
+.condition-review-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.compact-heading {
+  margin-bottom: 4px;
+}
+
+.condition-review-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px;
+  border-radius: 17px;
+  background: #f6f9fb;
+}
+
+.condition-review-card div:first-child {
+  display: grid;
+  gap: 5px;
+}
+
+.condition-review-card span {
+  color: #168568;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.condition-review-card small {
+  color: #7a8999;
+}
+
+.condition-actions {
+  display: flex;
+  gap: 10px;
 }
 
 .field-row {

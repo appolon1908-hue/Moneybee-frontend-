@@ -78,6 +78,13 @@ export const ENDPOINTS = {
     workspace: "/lender/workspace",
     programs: "/lender/programs",
     program: (programId: string) => `/lender/programs/${encodeURIComponent(programId)}`,
+    conditionApprove: (conditionId: string) =>
+      `/lender/conditions/${encodeURIComponent(conditionId)}/approve`,
+    conditionReject: (conditionId: string) =>
+      `/lender/conditions/${encodeURIComponent(conditionId)}/reject`,
+    conditionWaive: (conditionId: string) =>
+      `/lender/conditions/${encodeURIComponent(conditionId)}/waive`,
+    fundings: "/lender/fundings",
     submissions: "/lender/submissions",
     submissionWorkspace: (submissionId: string) =>
       `/lender/submissions/${encodeURIComponent(submissionId)}/workspace`,

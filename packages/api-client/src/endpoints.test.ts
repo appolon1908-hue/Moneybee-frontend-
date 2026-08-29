@@ -20,6 +20,12 @@ describe("MoneyBee endpoint builders", () => {
       .toBe("/borrower/conversations/conversation%2F1/messages");
     expect(ENDPOINTS.lender.submissionDecisions("submission/1"))
       .toBe("/lender/submissions/submission%2F1/decisions");
+    expect(ENDPOINTS.lender.conditionApprove("condition/1"))
+      .toBe("/lender/conditions/condition%2F1/approve");
+    expect(ENDPOINTS.lender.conditionReject("condition/1"))
+      .toBe("/lender/conditions/condition%2F1/reject");
+    expect(ENDPOINTS.lender.conditionWaive("condition/1"))
+      .toBe("/lender/conditions/condition%2F1/waive");
     expect(ENDPOINTS.applications.owner("application/1", "owner/1"))
       .toBe("/applications/application%2F1/owners/owner%2F1");
     expect(ENDPOINTS.admin.webhookReceiptRequeue("receipt/1"))
