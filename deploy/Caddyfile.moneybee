@@ -66,5 +66,6 @@ admin.moneybeeloan.com {
 api.moneybeeloan.com {
     encode zstd gzip
     import moneybee_api_security
+    respond /metrics 404
     reverse_proxy moneybee-api:8000
 }

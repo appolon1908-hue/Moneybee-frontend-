@@ -110,6 +110,10 @@ describe("MoneyBee Caddy edge security headers", () => {
     expect(blockFor("api.moneybeeloan.com")).toContain("import moneybee_api_security")
   })
 
+  it("api.moneybeeloan.com does not expose Prometheus metrics publicly", () => {
+    expect(blockFor("api.moneybeeloan.com")).toContain("respond /metrics 404")
+  })
+
   it("API CSP blocks script, style, font, image, frame, object, form, and base access", () => {
     const apiSnippet = caddyfile.match(/\(moneybee_api_security\) \{[\s\S]*?\n\}/m)?.[0] || ""
     for (const directive of [
