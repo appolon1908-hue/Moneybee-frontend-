@@ -1,5 +1,19 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v2"
+const DEFAULT_API_BASE_URL = "http://localhost:8000/api/v2"
+
+export class ApiConfigurationError extends Error {}
+
+export function normalizeApiBaseUrl(value: unknown = import.meta.env.VITE_API_BASE_URL): string {
+  const normalized = String(value || DEFAULT_API_BASE_URL).replace(/\/$/, "")
+  if (!/^https?:\/\//.test(normalized)) {
+    throw new ApiConfigurationError("VITE_API_BASE_URL must be an HTTP(S) URL.")
+  }
+  if (!normalized.endsWith("/api/v2")) {
+    throw new ApiConfigurationError("VITE_API_BASE_URL must use the canonical /api/v2 API.")
+  }
+  return normalized
+}
+
+const API_BASE_URL = normalizeApiBaseUrl()
 
 let accessTokenProvider: (() => Promise<string | null>) | null = null
 let unauthorizedHandler: (() => Promise<boolean>) | null = null

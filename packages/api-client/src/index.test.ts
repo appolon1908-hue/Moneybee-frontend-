@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest"
 import {
+  ApiConfigurationError,
   ApiProblem,
   apiResponse,
   configureAccessTokenProvider,
   configureUnauthorizedHandler,
   money,
+  normalizeApiBaseUrl,
   recoveryAction,
 } from "./index"
 
@@ -15,6 +17,15 @@ describe("money", () => {
 })
 
 describe("api client", () => {
+  it("accepts only canonical api v2 base URLs", () => {
+    expect(normalizeApiBaseUrl("https://api.moneybeeloan.com/api/v2/"))
+      .toBe("https://api.moneybeeloan.com/api/v2")
+    expect(() => normalizeApiBaseUrl("https://api.moneybeeloan.com/api/v1"))
+      .toThrow(ApiConfigurationError)
+    expect(() => normalizeApiBaseUrl("/api/v2"))
+      .toThrow(ApiConfigurationError)
+  })
+
   it("classifies concurrency, rate-limit, and recoverable server failures", () => {
     expect(recoveryAction(new ApiProblem("stale", 409, "CONCURRENT_MODIFICATION")))
       .toBe("RELOAD_RESOURCE")
