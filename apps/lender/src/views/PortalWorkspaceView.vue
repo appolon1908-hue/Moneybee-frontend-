@@ -19,12 +19,9 @@ const bankQueue = ref<Array<Record<string, unknown>>>([])
 const portfolio = ref<Record<string, unknown>>({})
 const selectedSubmissionId = ref('')
 const submissionWorkspace = ref<Record<string, unknown> | null>(null)
-const decision = ref<LenderDecisionInput['decision']>('REQUEST_INFORMATION')
-const decisionReason = ref('')
+const decision = ref<LenderDecisionInput['decision']>('CONDITIONS')
+const decisionReasonCodes = ref('')
 const decisionComments = ref('')
-const approvedAmount = ref('')
-const interestRate = ref('')
-const termMonths = ref('')
 
 const organizationId = computed(() => context.value?.active_organization_id ?? null)
 const programs = computed(() => workspace.value?.programs ?? [])
@@ -137,30 +134,30 @@ async function toggleProgram(program: Record<string, unknown>): Promise<void> {
 }
 
 async function submitDecision(): Promise<void> {
-  if (!selectedSubmissionId.value || !organizationId.value) return
+  const submission = submissions.value.find(
+    (item) => text(item, 'id') === selectedSubmissionId.value,
+  )
+  const expectedVersion = numeric(submission ?? {}, 'version')
+  if (!selectedSubmissionId.value || !organizationId.value || !expectedVersion) return
   actionPending.value = true
   clearMessages()
   try {
     const payload: LenderDecisionInput = {
+      expected_version: expectedVersion,
       decision: decision.value,
-      reason_code: decisionReason.value.trim() || undefined,
-      comments: decisionComments.value.trim() || undefined,
-      conditions: [],
+      reason_codes: decisionReasonCodes.value
+        .split(',')
+        .map((code) => code.trim())
+        .filter(Boolean),
+      notes: decisionComments.value.trim() || undefined,
     }
-    if (decision.value === 'APPROVE') {
-      if (approvedAmount.value) payload.approved_amount = approvedAmount.value
-      if (interestRate.value) payload.interest_rate = interestRate.value
-      if (termMonths.value) payload.term_months = Number(termMonths.value)
-    }
-    const result = await lenderPortalApi.recordDecision(
+    await lenderPortalApi.recordDecision(
       selectedSubmissionId.value,
       payload,
       crypto.randomUUID(),
       organizationId.value,
     )
-    successMessage.value = result.replayed
-      ? 'The existing decision was returned safely.'
-      : 'Decision recorded and sent to MoneyBee operations for review.'
+    successMessage.value = 'Decision recorded and sent to MoneyBee operations for review.'
     decisionComments.value = ''
     await Promise.all([loadWorkspace(), loadSubmissionWorkspace()])
   } catch (error) {
@@ -326,28 +323,16 @@ onMounted(async () => {
             <label>
               <span>Decision</span>
               <select v-model="decision">
-                <option value="REQUEST_INFORMATION">Request information</option>
-                <option value="APPROVE">Approve for review</option>
+                <option value="CONDITIONS">Request conditions</option>
+                <option value="APPROVE">Approve</option>
                 <option value="DECLINE">Decline</option>
+                <option value="FRAUD_REVIEW">Escalate — fraud review</option>
+                <option value="COMPLIANCE_REVIEW">Escalate — compliance review</option>
               </select>
             </label>
-            <div v-if="decision === 'APPROVE'" class="field-row">
-              <label>
-                <span>Approved amount</span>
-                <input v-model="approvedAmount" inputmode="decimal" placeholder="25000" />
-              </label>
-              <label>
-                <span>Interest rate</span>
-                <input v-model="interestRate" inputmode="decimal" placeholder="12.5" />
-              </label>
-              <label>
-                <span>Term months</span>
-                <input v-model="termMonths" inputmode="numeric" placeholder="24" />
-              </label>
-            </div>
             <label>
-              <span>Reason code</span>
-              <input v-model="decisionReason" maxlength="100" />
+              <span>Reason codes (comma separated)</span>
+              <input v-model="decisionReasonCodes" maxlength="200" placeholder="LOW_DSCR, HIGH_NSF" />
             </label>
             <label>
               <span>Review notes</span>
@@ -701,12 +686,6 @@ textarea {
   background: #f3faf7;
 }
 
-.field-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
 .portfolio-list span {
   color: #617488;
   text-transform: capitalize;
@@ -743,8 +722,7 @@ textarea {
 
   .metric-grid,
   .content-grid,
-  .review-summary,
-  .field-row {
+  .review-summary {
     grid-template-columns: 1fr;
   }
 

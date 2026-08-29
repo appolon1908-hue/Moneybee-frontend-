@@ -22,13 +22,10 @@ import {
 export type PortalContext = AuthContext;
 
 export interface LenderDecisionInput {
-  decision: "APPROVE" | "DECLINE" | "REQUEST_INFORMATION";
-  reason_code?: string;
-  comments?: string;
-  conditions?: string[];
-  approved_amount?: string;
-  interest_rate?: string;
-  term_months?: number;
+  expected_version: number;
+  decision: "APPROVE" | "DECLINE" | "CONDITIONS" | "FRAUD_REVIEW" | "COMPLIANCE_REVIEW";
+  reason_codes?: string[];
+  notes?: string;
 }
 
 export interface LenderWorkspace {
@@ -182,19 +179,6 @@ export const lenderPortalApi = {
     idempotencyKey: string,
     organizationId?: string | null,
   ) {
-    const result = await recordLenderDecision(
-      submissionId,
-      {
-        decision: payload.decision,
-        notes: payload.comments || payload.reason_code || null,
-        requested_items: payload.conditions || [],
-        offer_amount: payload.approved_amount || null,
-        interest_rate: payload.interest_rate || null,
-        term_months: payload.term_months || null,
-      },
-      idempotencyKey,
-      organizationId,
-    );
-    return { ...result, replayed: false as const };
+    return recordLenderDecision(submissionId, payload, idempotencyKey, organizationId);
   },
 };

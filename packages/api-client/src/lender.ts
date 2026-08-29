@@ -27,27 +27,26 @@ export interface LenderProgram {
   lender_id: string;
   name: string;
   product_type: string;
-  min_amount: string | null;
-  max_amount: string | null;
-  min_credit_score: number | null;
-  min_monthly_revenue: string | null;
-  min_time_in_business_months: number | null;
-  allowed_states: string[];
+  min_amount: string;
+  max_amount: string;
+  minimum_monthly_revenue: string;
+  minimum_time_in_business_months: number;
+  states: string[];
+  excluded_industries: string[];
   active: boolean;
   version: number;
-  created_at: string;
   updated_at: string;
 }
 
 export interface LenderProgramPatch {
   name?: string;
   product_type?: string;
-  min_amount?: string | null;
-  max_amount?: string | null;
-  min_credit_score?: number | null;
-  min_monthly_revenue?: string | null;
-  min_time_in_business_months?: number | null;
-  allowed_states?: string[] | null;
+  min_amount?: number;
+  max_amount?: number;
+  minimum_monthly_revenue?: number;
+  minimum_time_in_business_months?: number;
+  states?: string[] | null;
+  excluded_industries?: string[] | null;
   active?: boolean;
 }
 
@@ -60,22 +59,20 @@ export interface LenderSubmissionWorkspace {
 }
 
 export interface LenderDecisionCreate {
-  decision: "APPROVE" | "DECLINE" | "REQUEST_INFORMATION";
+  expected_version: number;
+  decision: "APPROVE" | "DECLINE" | "CONDITIONS" | "FRAUD_REVIEW" | "COMPLIANCE_REVIEW";
+  reason_codes?: string[];
   notes?: string | null;
-  requested_items?: string[];
-  offer_amount?: string | null;
-  term_months?: number | null;
-  interest_rate?: string | null;
 }
 
 export interface LenderDecisionResult {
+  review_id: string;
   submission_id: string;
   application_id: string;
   decision: LenderDecisionCreate["decision"];
   status: string;
-  version: number | null;
-  live_submission_triggered: false;
-  recorded_at: string;
+  version: number;
+  created_at: string;
 }
 
 export interface BankAnalysisQueueItem {
@@ -122,8 +119,7 @@ export function updateLenderProgram(
     `/lender/programs/${encodeURIComponent(programId)}`,
     withOrganization(organizationId, {
       method: "PATCH",
-      expectedVersion: version,
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, version }),
     }),
   );
 }
