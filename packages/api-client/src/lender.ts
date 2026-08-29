@@ -15,11 +15,17 @@ export interface LenderSubmissionSummary {
 export interface LenderWorkspace {
   summary: {
     active_programs: number;
+    program_count: number;
     submission_count: number;
     pending_submissions: number;
+    pending_submission_count: number;
+    offer_count: number;
   };
   recent_submissions: LenderSubmissionSummary[];
   open_tasks: PortalTask[];
+  programs: Array<Record<string, unknown>>;
+  submissions: Array<Record<string, unknown>>;
+  offers: Array<Record<string, unknown>>;
 }
 
 export interface LenderProgram {
@@ -52,11 +58,13 @@ export interface LenderProgramPatch {
 }
 
 export interface LenderSubmissionWorkspace {
+  [key: string]: unknown;
   submission: LenderSubmissionSummary & Record<string, unknown>;
   application: Record<string, unknown>;
   conditions: Array<Record<string, unknown>>;
   bank_analyses: Array<Record<string, unknown>>;
   offers: Array<Record<string, unknown>>;
+  tasks?: PortalTask[];
 }
 
 export interface LenderDecisionCreate {
@@ -66,6 +74,16 @@ export interface LenderDecisionCreate {
   offer_amount?: string | null;
   term_months?: number | null;
   interest_rate?: string | null;
+}
+
+export interface LenderDecisionInput {
+  decision: LenderDecisionCreate["decision"];
+  reason_code?: string;
+  comments?: string;
+  conditions?: Array<Record<string, unknown>>;
+  approved_amount?: string;
+  interest_rate?: string;
+  term_months?: number;
 }
 
 export interface LenderDecisionResult {
@@ -84,18 +102,26 @@ export interface BankAnalysisQueueItem {
 }
 
 export interface LenderPortfolio {
+  [key: string]: unknown;
   summary: {
     offer_count: number;
     accepted_or_funded_count: number;
     accepted_or_funded_amount: string;
   };
   positions: Array<Record<string, unknown>>;
+  submission_status_counts?: Record<string, number>;
+}
+
+type OrganizationSelection = string | null | undefined;
+
+function selectedOrganization(value: OrganizationSelection): string | undefined {
+  return value || undefined;
 }
 
 export function getLenderWorkspace(
   organizationId?: string,
-): Promise<LenderWorkspace> {
-  return api<LenderWorkspace>(
+): Promise<Omit<LenderWorkspace, "programs" | "submissions" | "offers">> {
+  return api(
     "/lender/workspace",
     withOrganization(organizationId),
   );
@@ -185,3 +211,92 @@ export function getLenderPortfolio(
     withOrganization(organizationId),
   );
 }
+
+export const lenderPortalApi = {
+  async workspace(organizationId?: string | null): Promise<LenderWorkspace> {
+    const selected = selectedOrganization(organizationId);
+    const [workspace, programs, portfolio] = await Promise.all([
+      getLenderWorkspace(selected),
+      listLenderPrograms(undefined, selected),
+      getLenderPortfolio(selected),
+    ]);
+    return {
+      ...workspace,
+      summary: {
+        ...workspace.summary,
+        program_count: workspace.summary.active_programs,
+        pending_submission_count: workspace.summary.pending_submissions,
+        offer_count: portfolio.summary.offer_count,
+      },
+      programs: programs as unknown as Array<Record<string, unknown>>,
+      submissions: workspace.recent_submissions as unknown as Array<Record<string, unknown>>,
+      offers: portfolio.positions,
+    };
+  },
+
+  async bankAnalysisQueue(
+    organizationId?: string | null,
+  ): Promise<{items: Array<Record<string, unknown>>}> {
+    const queue = await listBankAnalysisQueue(
+      undefined,
+      selectedOrganization(organizationId),
+    );
+    return {
+      items: queue.map(({ submission, analysis }) => ({
+        ...analysis,
+        submission_id: submission.id,
+        application_id: submission.application_id,
+        submission_status: submission.status,
+      })),
+    };
+  },
+
+  async portfolio(organizationId?: string | null): Promise<LenderPortfolio> {
+    const selected = selectedOrganization(organizationId);
+    const [portfolio, workspace] = await Promise.all([
+      getLenderPortfolio(selected),
+      getLenderWorkspace(selected),
+    ]);
+    const submissionStatusCounts = workspace.recent_submissions.reduce<Record<string, number>>(
+      (counts, submission) => {
+        counts[submission.status] = (counts[submission.status] || 0) + 1;
+        return counts;
+      },
+      {},
+    );
+    return { ...portfolio, submission_status_counts: submissionStatusCounts };
+  },
+
+  submissionWorkspace: getLenderSubmissionWorkspace,
+
+  patchProgram(
+    programId: string,
+    payload: LenderProgramPatch,
+    version: number,
+    organizationId?: string,
+  ): Promise<LenderProgram> {
+    return updateLenderProgram(programId, version, payload, organizationId);
+  },
+
+  async recordDecision(
+    submissionId: string,
+    payload: LenderDecisionInput,
+    idempotencyKey: string,
+    organizationId?: string,
+  ): Promise<LenderDecisionResult & {replayed: boolean}> {
+    const result = await recordLenderDecision(
+      submissionId,
+      {
+        decision: payload.decision,
+        notes: [payload.reason_code, payload.comments].filter(Boolean).join(": ") || undefined,
+        requested_items: payload.conditions?.map((condition) => String(condition.code || condition.type || "condition")),
+        offer_amount: payload.approved_amount,
+        interest_rate: payload.interest_rate,
+        term_months: payload.term_months,
+      },
+      idempotencyKey,
+      organizationId,
+    );
+    return { ...result, replayed: false };
+  },
+};

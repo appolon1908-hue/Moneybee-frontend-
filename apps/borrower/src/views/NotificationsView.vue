@@ -23,7 +23,7 @@ async function load(): Promise<void> {
   error.value = "";
   try {
     const context = await getAuthContext();
-    organizationId.value = context.active_organization_id;
+    organizationId.value = context.active_organization_id ?? "";
     notifications.value = await listPortalNotifications(
       unreadOnly.value,
       organizationId.value,

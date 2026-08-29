@@ -11,6 +11,7 @@ import OffersView from "./views/OffersView.vue"
 import OwnersView from "./views/OwnersView.vue"
 import ProfileView from "./views/ProfileView.vue"
 import SupportView from "./views/SupportView.vue"
+import WorkspaceView from "./views/WorkspaceView.vue"
 
 export default createRouter({
   history: createWebHistory(),
@@ -22,7 +23,7 @@ export default createRouter({
     {
       path: "/workspace",
       name: "borrower-portal-workspace",
-      component: () => import("./views/PortalWorkspaceView.vue"),
+      component: WorkspaceView,
       meta: { requiresAuth: true, title: "Your MoneyBee workspace" },
     },
     {path: "/application", component: ApplicationView},

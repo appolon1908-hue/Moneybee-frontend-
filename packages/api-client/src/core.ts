@@ -3,6 +3,7 @@ const API_BASE_URL =
 
 let accessTokenProvider: (() => Promise<string | null>) | null = null
 let unauthorizedHandler: (() => Promise<boolean>) | null = null
+let organizationIdProvider: (() => string | null) | null = null
 
 export function configureAccessTokenProvider(
   provider: () => Promise<string | null>,
@@ -14,6 +15,12 @@ export function configureUnauthorizedHandler(
   handler: () => Promise<boolean>,
 ): void {
   unauthorizedHandler = handler
+}
+
+export function configureOrganizationIdProvider(
+  provider: () => string | null,
+): void {
+  organizationIdProvider = provider
 }
 
 export class ApiProblem extends Error {
@@ -86,6 +93,8 @@ export async function apiResponse<T>(
   headers.set("X-Correlation-ID", correlationId)
   if (!(options.body instanceof FormData)) headers.set("Content-Type", "application/json")
   if (token) headers.set("Authorization", "Bearer " + token)
+  const organizationId = organizationIdProvider ? organizationIdProvider() : null
+  if (organizationId) headers.set("X-Organization-ID", organizationId)
   if (options.idempotencyKey) headers.set("Idempotency-Key", options.idempotencyKey)
   if (options.expectedVersion !== undefined) {
     headers.set("If-Match", `"${String(options.expectedVersion).replaceAll('"', "")}"`)

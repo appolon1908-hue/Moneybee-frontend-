@@ -1,0 +1,158 @@
+name: moneybee
+
+x-frontend-common: &frontend-common
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  networks:
+    - moneybee-edge
+  healthcheck:
+    test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
+    interval: 20s
+    timeout: 5s
+    retries: 5
+    start_period: 10s
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: moneybee-postgres
+    restart: unless-stopped
+    env_file:
+      - /opt/moneybee/secrets/postgres.env
+    volumes:
+      - moneybee-postgres-data:/var/lib/postgresql/data
+    networks:
+      - moneybee-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-moneybee} -d $${POSTGRES_DB:-moneybee}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: moneybee-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
+    volumes:
+      - moneybee-redis-data:/data
+    networks:
+      - moneybee-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    image: moneybee-api:${MONEYBEE_RELEASE:-local}
+    container_name: moneybee-api
+    restart: unless-stopped
+    env_file:
+      - /opt/moneybee/secrets/backend.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - moneybee-internal
+      - moneybee-edge
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=4).read()",
+        ]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  marketing:
+    <<: *frontend-common
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        APP: marketing
+        VITE_API_BASE_URL: https://api.moneybeeloan.com/api/v2
+        VITE_BORROWER_URL: https://app.moneybeeloan.com
+        VITE_LENDER_URL: https://lenders.moneybeeloan.com
+        VITE_ADMIN_URL: https://admin.moneybeeloan.com
+    image: moneybee-marketing:${MONEYBEE_RELEASE:-local}
+    container_name: moneybee-marketing
+
+  borrower:
+    <<: *frontend-common
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        APP: borrower
+        VITE_API_BASE_URL: https://api.moneybeeloan.com/api/v2
+        VITE_BORROWER_URL: https://app.moneybeeloan.com
+        VITE_LENDER_URL: https://lenders.moneybeeloan.com
+        VITE_ADMIN_URL: https://admin.moneybeeloan.com
+        VITE_OIDC_AUTHORITY: https://auth.codestra.co/realms/codestra
+        VITE_OIDC_CLIENT_ID: moneybee-borrower
+        VITE_OIDC_AUDIENCE: moneybee-api
+    image: moneybee-borrower:${MONEYBEE_RELEASE:-local}
+    container_name: moneybee-borrower
+
+  lender:
+    <<: *frontend-common
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        APP: lender
+        VITE_API_BASE_URL: https://api.moneybeeloan.com/api/v2
+        VITE_BORROWER_URL: https://app.moneybeeloan.com
+        VITE_LENDER_URL: https://lenders.moneybeeloan.com
+        VITE_ADMIN_URL: https://admin.moneybeeloan.com
+        VITE_OIDC_AUTHORITY: https://auth.codestra.co/realms/codestra
+        VITE_OIDC_CLIENT_ID: moneybee-lender
+        VITE_OIDC_AUDIENCE: moneybee-api
+    image: moneybee-lender:${MONEYBEE_RELEASE:-local}
+    container_name: moneybee-lender
+
+  admin:
+    <<: *frontend-common
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        APP: admin
+        VITE_API_BASE_URL: https://api.moneybeeloan.com/api/v2
+        VITE_BORROWER_URL: https://app.moneybeeloan.com
+        VITE_LENDER_URL: https://lenders.moneybeeloan.com
+        VITE_ADMIN_URL: https://admin.moneybeeloan.com
+        VITE_OIDC_AUTHORITY: https://auth.codestra.co/realms/codestra
+        VITE_OIDC_CLIENT_ID: moneybee-admin
+        VITE_OIDC_AUDIENCE: moneybee-api
+    image: moneybee-admin:${MONEYBEE_RELEASE:-local}
+    container_name: moneybee-admin
+
+networks:
+  moneybee-internal:
+    name: moneybee-internal
+    internal: true
+  moneybee-edge:
+    name: moneybee-edge
+    external: true
+
+volumes:
+  moneybee-postgres-data:
+    name: moneybee-postgres-data
+  moneybee-redis-data:
+    name: moneybee-redis-data

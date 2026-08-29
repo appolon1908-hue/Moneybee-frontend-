@@ -27,7 +27,7 @@ async function load(): Promise<void> {
   try {
     const context = await getAuthContext();
     workspace.value = await getBorrowerWorkspace(
-      context.active_organization_id,
+      context.active_organization_id ?? undefined,
     );
   } catch (caught) {
     error.value =
