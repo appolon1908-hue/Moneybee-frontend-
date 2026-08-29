@@ -12,10 +12,14 @@
     "e2e:launch": "node scripts/run-launch-e2e.mjs",
     "e2e:launch:external": "playwright test -c playwright.launch.config.ts",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "vitest run --exclude tests/e2e/**"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
+    "@vitest/coverage-v8": "^3.2.7",
+    "jsdom": "^30.0.1",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }

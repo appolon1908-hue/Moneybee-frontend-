@@ -7,8 +7,9 @@ import {
 import { AuthConfigurationError, LocalIdentityError, safeReturnTo } from "./errors"
 import {
   ACCOUNT_BOOTSTRAP_KEY,
-  ACTIVE_ORGANIZATION_KEY,
   RETURN_TO_KEY,
+  getActiveOrganizationId,
+  setActiveOrganizationId,
   type AccountBootstrapResult,
   type LocalPrincipal,
 } from "./session"
@@ -207,7 +208,7 @@ export class MoneyBeeAuthManager {
       "X-Request-ID": requestId,
       "X-Correlation-ID": requestId,
     })
-    const activeOrganizationId = window.sessionStorage.getItem(ACTIVE_ORGANIZATION_KEY)
+    const activeOrganizationId = getActiveOrganizationId()
     if (activeOrganizationId) headers.set("X-Organization-ID", activeOrganizationId)
 
     const response = await fetch(`${this.options.apiBaseUrl}/auth/bootstrap`, {
@@ -226,7 +227,7 @@ export class MoneyBeeAuthManager {
     }
     const result = await response.json() as AccountBootstrapResult
     if (!activeOrganizationId && result.organization_id) {
-      window.sessionStorage.setItem(ACTIVE_ORGANIZATION_KEY, result.organization_id)
+      setActiveOrganizationId(result.organization_id)
     }
     window.sessionStorage.removeItem(storageKey)
     this.clearLocalPrincipal()
@@ -320,7 +321,7 @@ export class MoneyBeeAuthManager {
     if (!force && this.principal && this.principalToken === token) return this.principal
 
     const requestId = crypto.randomUUID()
-    const activeOrganizationId = window.sessionStorage.getItem(ACTIVE_ORGANIZATION_KEY)
+    const activeOrganizationId = getActiveOrganizationId()
     const headers = new Headers({
       Accept: "application/json",
       Authorization: `Bearer ${token}`,
@@ -354,11 +355,7 @@ export class MoneyBeeAuthManager {
   }
 
   selectOrganization(organizationId: string): void {
-    if (!organizationId) {
-      window.sessionStorage.removeItem(ACTIVE_ORGANIZATION_KEY)
-    } else {
-      window.sessionStorage.setItem(ACTIVE_ORGANIZATION_KEY, organizationId)
-    }
+    setActiveOrganizationId(organizationId || null)
     this.clearLocalPrincipal()
   }
 

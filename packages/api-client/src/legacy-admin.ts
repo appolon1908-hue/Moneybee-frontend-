@@ -1,3 +1,14 @@
+/**
+ * @deprecated
+ * Legacy admin portal API compatibility layer.
+ * Use the canonical module directly:
+ *   - Admin operations: import from './admin'
+ *
+ * Planned removal: Q4 2026
+ * Tracking: https://github.com/appolon1908-hue/Moneybee-frontend-/issues
+ *
+ * Do not add new functions here. Add to './admin' instead.
+ */
 import {
   getAdminOperationsWorkspace,
   getIntegrationHealth,

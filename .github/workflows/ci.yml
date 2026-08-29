@@ -1,9 +1,14 @@
+# Branch protection: the 'validate' job must pass before merging to main.
+# Enable in GitHub: Settings -> Branches -> main -> Require status checks ->
+# Add 'validate' and 'containers (marketing)', 'containers (borrower)',
+# 'containers (lender)', 'containers (admin)'.
 name: secure-frontend-ci
 
 on:
   pull_request:
   push:
     branches:
+      - main
       - "feature/**"
       - "ops/**"
       - "release/**"

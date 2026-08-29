@@ -1,3 +1,16 @@
+/**
+ * @deprecated
+ * Legacy portal API compatibility layer.
+ * Use the canonical modules directly:
+ *   - Borrower operations: import from './borrower'
+ *   - Lender operations:   import from './lender'
+ *   - Auth context:        import from './portal'
+ *
+ * Planned removal: Q4 2026
+ * Tracking: https://github.com/appolon1908-hue/Moneybee-frontend-/issues
+ *
+ * Do not add new functions here. Add to the canonical module instead.
+ */
 import {
   acceptBorrowerOffer,
   listBorrowerApplicationConditions,
