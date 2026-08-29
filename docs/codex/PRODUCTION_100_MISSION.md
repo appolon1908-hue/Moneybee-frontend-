@@ -80,14 +80,31 @@ call-sites), not hidden.
 Ordered so each slice is only started once its backend counterpart lands
 in the backend mission's Phase 2:
 
-- [ ] **Lender portal** — furthest behind target. Spec wants `dashboard`,
-      `submissions`, `underwriting`, `conditions`, `offers`, `programs`,
-      `funded`, `reports`, `settings`. Today: `DashboardView`,
-      `SubmissionsView`, `PortalWorkspaceView` only. Needs dedicated
-      `UnderwritingView`, `ConditionsView`, `OffersView`, `ProgramsView`,
-      `FundedView`, `ReportsView`, `SettingsView` (or confirm
-      `PortalWorkspaceView` genuinely covers several as internal tabs —
-      audit before assuming a gap and building a duplicate).
+- [x] **Lender portal** — was furthest behind target; all 9 spec slices now
+      exist, pass: `5703010` + `5f2ef09`.
+      Audited `PortalWorkspaceView` first per this doc's own note — it's a
+      genuinely separate combined workspace (kept, mounted at `/workspace`),
+      not a substitute for the individually-routed slices, so no
+      duplication. Added `UnderwritingView` (bank review queue + decision
+      recording), `ConditionsView` (request/approve/reject/waive),
+      `ProgramsView` (list + edit eligibility rules), `ReportsView`
+      (portfolio performance, composed from existing endpoints — no new
+      backend needed), `SettingsView` (notification preferences via the
+      shared `/me/notification-preferences` endpoint). Replaced the
+      `OffersView`/`FundedView` placeholders (`/offers` and `/funded-deals`
+      were reusing `SubmissionsView`/`DashboardView`) with real ones reading
+      `/lender/portfolio` and `/lender/fundings`.
+      While auditing `PortalWorkspaceView` found it was **shipping broken**:
+      `packages/api-client/src/lender.ts`'s `LenderDecisionCreate`/
+      `updateLenderProgram()` didn't match the real backend schemas at all
+      (missing required `expected_version`, version sent as an `If-Match`
+      header instead of in the body, a nonexistent `min_credit_score`
+      field) — every decision-record and every program edit through that
+      view was a guaranteed 422. Fixed the types, the PATCH payload, and
+      `PortalWorkspaceView`'s decision form (real enum, `reason_codes`
+      list, submission version threaded through); dropped the
+      approved_amount/interest_rate/term_months decision fields since the
+      backend never accepted them at decision time.
 - [ ] **Admin portal** — confirm each target slice
       (`leads`, `fraud`, `underwriting`, `matching`, `lenders`, `funding`,
       `commissions`, `crm`, `integrations`, `compliance`, `complaints`,
