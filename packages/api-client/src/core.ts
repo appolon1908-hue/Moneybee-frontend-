@@ -42,6 +42,7 @@ export type ApiOptions = RequestInit & {
   idempotencyKey?: string
   requestId?: string
   correlationId?: string
+  traceparent?: string
   expectedVersion?: number | string
 }
 
@@ -49,6 +50,7 @@ export interface ApiResponse<T> {
   data: T
   etag: string | null
   requestId: string
+  correlationId: string
 }
 
 export type ApiRecoveryAction =
@@ -88,9 +90,10 @@ export async function apiResponse<T>(
   const correlationId = options.correlationId || requestId
   const headers = new Headers(options.headers)
 
-  headers.set("Accept", "application/json")
+  headers.set("Accept", "application/json, application/problem+json")
   headers.set("X-Request-ID", requestId)
   headers.set("X-Correlation-ID", correlationId)
+  if (options.traceparent) headers.set("traceparent", options.traceparent)
   if (!(options.body instanceof FormData)) headers.set("Content-Type", "application/json")
   if (token) headers.set("Authorization", "Bearer " + token)
   const organizationId = organizationIdProvider ? organizationIdProvider() : null
@@ -100,7 +103,11 @@ export async function apiResponse<T>(
     headers.set("If-Match", `"${String(options.expectedVersion).replaceAll('"', "")}"`)
   }
 
-  const response = await fetch(API_BASE_URL + path, {...options, headers})
+  const response = await fetch(API_BASE_URL + path, {
+    ...options,
+    headers,
+    cache: options.cache ?? "no-store",
+  })
   if (response.status === 401 && !recovered && unauthorizedHandler && await unauthorizedHandler()) {
     return apiResponse<T>(path, options, true)
   }
@@ -117,6 +124,14 @@ export async function apiResponse<T>(
         ? problem.detail as Record<string, unknown>
         : problem
     const retryAfter = response.headers.get("Retry-After")
+    const responseCorrelationId = String(
+      problem.correlation_id
+      || response.headers.get("X-Correlation-ID")
+      || correlationId,
+    )
+    const nestedContext = nested.context && typeof nested.context === "object"
+      ? nested.context as Record<string, unknown>
+      : {}
     throw new ApiProblem(
       String(nested.detail || nested.message || problem.detail || problem.title || "Request failed"),
       response.status,
@@ -125,9 +140,7 @@ export async function apiResponse<T>(
       Array.isArray(problem.errors) ? problem.errors : undefined,
       Boolean(nested.retryable),
       retryAfter && /^\d+$/.test(retryAfter) ? Number(retryAfter) : undefined,
-      nested.context && typeof nested.context === "object"
-        ? nested.context as Record<string, unknown>
-        : undefined,
+      {...nestedContext, correlationId: responseCorrelationId},
     )
   }
   const data = response.status === 204
@@ -137,6 +150,7 @@ export async function apiResponse<T>(
     data,
     etag: response.headers.get("ETag"),
     requestId: response.headers.get("X-Request-ID") || requestId,
+    correlationId: response.headers.get("X-Correlation-ID") || correlationId,
   }
 }
 
