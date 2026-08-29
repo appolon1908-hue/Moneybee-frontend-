@@ -2,6 +2,7 @@ export const ENDPOINTS = {
   identity: {
     context: "/auth/context",
     me: "/me",
+    capabilities: "/me/capabilities",
     notificationPreferences: "/me/notification-preferences",
     portalNavigation: "/portal/navigation",
   },
@@ -32,6 +33,7 @@ export const ENDPOINTS = {
   },
   applications: {
     collection: "/applications",
+    fromLead: (leadId: string) => `/applications/from-lead/${encodeURIComponent(leadId)}`,
     item: (applicationId: string) => `/applications/${encodeURIComponent(applicationId)}`,
     requirements: (applicationId: string) =>
       `/applications/${encodeURIComponent(applicationId)}/requirements`,
@@ -51,6 +53,10 @@ export const ENDPOINTS = {
       `/applications/${encodeURIComponent(applicationId)}/conditions`,
     complaints: (applicationId: string) =>
       `/applications/${encodeURIComponent(applicationId)}/complaints`,
+    submit: (applicationId: string) =>
+      `/applications/${encodeURIComponent(applicationId)}/submit`,
+    funding: (applicationId: string) =>
+      `/applications/${encodeURIComponent(applicationId)}/funding`,
     bankLinkSession: (applicationId: string) =>
       `/applications/${encodeURIComponent(applicationId)}/bank/link-session`,
     bankExchange: (applicationId: string) =>
@@ -87,6 +93,15 @@ export const ENDPOINTS = {
     portfolio: "/lender/portfolio",
   },
   admin: {
+    dashboard: "/admin/dashboard",
+    crmEvents: "/admin/crm/events",
+    capabilities: "/admin/capabilities",
+    providerConnections: "/admin/provider-connections",
+    fundings: "/admin/fundings",
+    complaints: "/admin/complaints",
+    integrationEvents: "/admin/integration-events",
+    reconciliationRuns: "/admin/reconciliation-runs",
+    systemReadiness: "/admin/system/readiness",
     workspace: "/admin/workspace",
     tasks: "/admin/tasks",
     task: (taskId: string) => `/admin/tasks/${encodeURIComponent(taskId)}`,
@@ -105,6 +120,11 @@ export const ENDPOINTS = {
     crmDelivery: (deliveryId: string) => `/admin/crm-deliveries/${encodeURIComponent(deliveryId)}`,
     crmDeliveryRequeue: (deliveryId: string) =>
       `/admin/crm-deliveries/${encodeURIComponent(deliveryId)}/requeue`,
+    integrationInbox: "/admin/integration-inbox",
+    operationalExceptions: "/admin/operational-exceptions",
+    operationalExceptionResolve: (exceptionId: string) =>
+      `/admin/operational-exceptions/${encodeURIComponent(exceptionId)}/resolve`,
+    webhooksConfiguration: "/admin/webhooks/configuration",
     catalogs: {
       leads: "/admin/catalog/leads",
       applications: "/admin/catalog/applications",

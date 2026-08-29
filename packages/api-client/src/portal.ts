@@ -166,6 +166,12 @@ export interface PortalQuery {
   offset?: number;
 }
 
+export interface NotificationPreferences {
+  email_enabled: boolean;
+  sms_enabled: boolean;
+  in_app_enabled: boolean;
+}
+
 function withOrganization(
   organizationId?: string | null,
   options: ApiOptions = {},
@@ -231,6 +237,37 @@ export async function getAuthContext(
     lender_id: lenderId,
     navigation,
   };
+}
+
+export function getCapabilityFlags(
+  organizationId?: string | null,
+): Promise<Record<string, boolean>> {
+  return api<Record<string, boolean>>(
+    ENDPOINTS.identity.capabilities,
+    withOrganization(organizationId),
+  );
+}
+
+export function getNotificationPreferences(
+  organizationId?: string | null,
+): Promise<NotificationPreferences> {
+  return api<NotificationPreferences>(
+    ENDPOINTS.identity.notificationPreferences,
+    withOrganization(organizationId),
+  );
+}
+
+export function updateNotificationPreferences(
+  payload: NotificationPreferences,
+  organizationId?: string | null,
+): Promise<NotificationPreferences> {
+  return api<NotificationPreferences>(
+    ENDPOINTS.identity.notificationPreferences,
+    withOrganization(organizationId, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  );
 }
 
 export function listPortalTasks(

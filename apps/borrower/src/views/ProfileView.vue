@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue"
-import { api } from "@moneybee/api-client"
+import {
+  getNotificationPreferences,
+  updateNotificationPreferences,
+} from "@moneybee/api-client"
 
 const preferences = reactive({
   email_enabled: true,
@@ -15,7 +18,7 @@ onMounted(async () => {
   try {
     Object.assign(
       preferences,
-      await api<typeof preferences>("/me/notification-preferences"),
+      await getNotificationPreferences(),
     )
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : "Request failed"
@@ -27,10 +30,7 @@ async function save() {
   error.value = ""
   message.value = ""
   try {
-    await api("/me/notification-preferences", {
-      method: "PUT",
-      body: JSON.stringify(preferences),
-    })
+    await updateNotificationPreferences(preferences)
     message.value = "Notification preferences saved."
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : "Request failed"

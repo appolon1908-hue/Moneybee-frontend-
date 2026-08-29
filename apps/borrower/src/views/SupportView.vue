@@ -1,35 +1,42 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue"
-import { api } from "@moneybee/api-client"
+import {
+  createBorrowerComplaint,
+  getActiveBorrowerApplication,
+  getAuthContext,
+  listBorrowerComplaints,
+  type BorrowerComplaint,
+  type PortalTaskPriority,
+} from "@moneybee/api-client"
 
-type Complaint = {
-  id: string
-  category: string
-  description: string
-  priority: string
-  status: string
-  created_at: string
-}
-
-const applicationId = import.meta.env.VITE_DEMO_APPLICATION_ID || ""
-const rows = ref<Complaint[]>([])
+const organizationId = ref("")
+const applicationId = ref("")
+const rows = ref<BorrowerComplaint[]>([])
+const loading = ref(true)
 const busy = ref(false)
 const message = ref("")
 const error = ref("")
 const form = reactive({
   category: "APPLICATION_SUPPORT",
   description: "",
-  priority: "NORMAL",
+  priority: "NORMAL" as PortalTaskPriority,
 })
 
 async function load() {
-  if (!applicationId) return
+  loading.value = true
+  error.value = ""
   try {
-    rows.value = await api<Complaint[]>(
-      `/applications/${applicationId}/complaints`,
-    )
+    const context = await getAuthContext()
+    organizationId.value = context.active_organization_id ?? ""
+    const application = await getActiveBorrowerApplication(organizationId.value)
+    applicationId.value = application?.id ?? ""
+    rows.value = applicationId.value
+      ? await listBorrowerComplaints(applicationId.value, organizationId.value)
+      : []
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : "Request failed"
+  } finally {
+    loading.value = false
   }
 }
 
@@ -38,10 +45,7 @@ async function submit() {
   error.value = ""
   message.value = ""
   try {
-    await api(`/applications/${applicationId}/complaints`, {
-      method: "POST",
-      body: JSON.stringify(form),
-    })
+    await createBorrowerComplaint(applicationId.value, form, organizationId.value)
     form.description = ""
     message.value = "Your support request was recorded."
     await load()
@@ -59,8 +63,11 @@ onMounted(load)
   <main class="container">
     <span class="eyebrow">SUPPORT</span>
     <h2>Application support</h2>
-    <div v-if="!applicationId" class="card error">
-      Set VITE_DEMO_APPLICATION_ID after creating a local application.
+    <div v-if="loading" class="card">
+      Loading support requests…
+    </div>
+    <div v-else-if="!applicationId" class="card error">
+      No borrower application is available for this account.
     </div>
     <template v-else>
       <div v-if="message" class="card notice" role="status">{{ message }}</div>

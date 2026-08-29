@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query"
-import { api } from "@moneybee/api-client"
+import { api, ENDPOINTS } from "@moneybee/api-client"
 
 type Capability = {
   id: string
@@ -39,15 +39,15 @@ type ReadinessReport = {
 
 const capabilities = useQuery({
   queryKey: ["admin-capabilities"],
-  queryFn: () => api<Capability[]>("/admin/capabilities"),
+  queryFn: () => api<Capability[]>(ENDPOINTS.admin.capabilities),
 })
 const providers = useQuery({
   queryKey: ["admin-provider-connections"],
-  queryFn: () => api<ProviderConnection[]>("/admin/provider-connections"),
+  queryFn: () => api<ProviderConnection[]>(ENDPOINTS.admin.providerConnections),
 })
 const readiness = useQuery({
   queryKey: ["admin-system-readiness"],
-  queryFn: () => api<ReadinessReport>("/admin/system/readiness"),
+  queryFn: () => api<ReadinessReport>(ENDPOINTS.admin.systemReadiness),
 })
 </script>
 

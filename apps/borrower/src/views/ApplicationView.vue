@@ -1,6 +1,19 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue"
-import { ApiProblem, api } from "@moneybee/api-client"
+import {
+  ApiProblem,
+  createBorrowerOwner,
+  deleteBorrowerOwner,
+  getActiveBorrowerApplication,
+  getAuthContext,
+  getBorrowerApplicationRequirements,
+  getBorrowerBusinessProfile,
+  getBorrowerFinancialProfile,
+  listBorrowerOwners,
+  saveBorrowerBusinessProfile,
+  saveBorrowerFinancialProfile,
+  submitBorrowerApplication,
+} from "@moneybee/api-client"
 
 type Business = {
   legal_name: string
@@ -14,10 +27,10 @@ type Business = {
 }
 
 type FinancialProfile = {
-  annual_revenue: number | null
-  monthly_revenue: number | null
-  monthly_expenses: number | null
-  existing_debt: number | null
+  annual_revenue: number | string | null
+  monthly_revenue: number | string | null
+  monthly_expenses: number | string | null
+  existing_debt: number | string | null
   existing_positions: number
 }
 
@@ -25,7 +38,7 @@ type Owner = {
   id: string
   first_name: string
   last_name: string
-  ownership_percent: number
+  ownership_percent: number | string
   title: string | null
   email: string | null
   phone: string | null
@@ -37,7 +50,9 @@ type Requirements = {
   requirements: Array<{code: string; label: string; complete: boolean}>
 }
 
-const applicationId = import.meta.env.VITE_DEMO_APPLICATION_ID || ""
+const organizationId = ref("")
+const applicationId = ref("")
+const loading = ref(true)
 const busy = ref(false)
 const message = ref("")
 const error = ref("")
@@ -72,9 +87,9 @@ const newOwner = reactive({
   phone: "",
 })
 
-async function optionalGet<T>(path: string): Promise<T | null> {
+async function optionalGet<T>(loader: () => Promise<T>): Promise<T | null> {
   try {
-    return await api<T>(path)
+    return await loader()
   } catch (caught) {
     if (caught instanceof ApiProblem && caught.status === 404) return null
     throw caught
@@ -86,17 +101,28 @@ function describeError(caught: unknown): string {
 }
 
 async function refresh() {
-  if (!applicationId) return
+  loading.value = true
   error.value = ""
   try {
+    const context = await getAuthContext()
+    organizationId.value = context.active_organization_id ?? ""
+    const application = await getActiveBorrowerApplication(organizationId.value)
+    applicationId.value = application?.id ?? ""
+    if (!applicationId.value) {
+      owners.value = []
+      requirements.value = null
+      return
+    }
     const [savedBusiness, savedFinancial, savedOwners, savedRequirements] =
       await Promise.all([
-        optionalGet<Business>(`/applications/${applicationId}/business`),
-        optionalGet<FinancialProfile>(
-          `/applications/${applicationId}/financial-profile`,
+        optionalGet<Business>(() =>
+          getBorrowerBusinessProfile(applicationId.value, organizationId.value),
         ),
-        api<Owner[]>(`/applications/${applicationId}/owners`),
-        api<Requirements>(`/applications/${applicationId}/requirements`),
+        optionalGet<FinancialProfile>(() =>
+          getBorrowerFinancialProfile(applicationId.value, organizationId.value),
+        ),
+        listBorrowerOwners(applicationId.value, organizationId.value),
+        getBorrowerApplicationRequirements(applicationId.value, organizationId.value),
       ])
     if (savedBusiness) Object.assign(business, savedBusiness)
     if (savedFinancial) Object.assign(financial, savedFinancial)
@@ -104,6 +130,8 @@ async function refresh() {
     requirements.value = savedRequirements
   } catch (caught) {
     error.value = describeError(caught)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -125,10 +153,7 @@ async function run(action: () => Promise<unknown>, success: string) {
 function saveBusiness() {
   return run(
     () =>
-      api(`/applications/${applicationId}/business`, {
-        method: "PUT",
-        body: JSON.stringify(business),
-      }),
+      saveBorrowerBusinessProfile(applicationId.value, business, organizationId.value),
     "Business information saved.",
   )
 }
@@ -136,10 +161,7 @@ function saveBusiness() {
 function saveFinancial() {
   return run(
     () =>
-      api(`/applications/${applicationId}/financial-profile`, {
-        method: "PUT",
-        body: JSON.stringify(financial),
-      }),
+      saveBorrowerFinancialProfile(applicationId.value, financial, organizationId.value),
     "Financial profile saved.",
   )
 }
@@ -147,16 +169,17 @@ function saveFinancial() {
 async function addOwner() {
   await run(
     () =>
-      api(`/applications/${applicationId}/owners`, {
-        method: "POST",
-        body: JSON.stringify({
+      createBorrowerOwner(
+        applicationId.value,
+        {
           ...newOwner,
           title: newOwner.title || null,
           email: newOwner.email || null,
           phone: newOwner.phone || null,
           address: {},
-        }),
-      }),
+        },
+        organizationId.value,
+      ),
     "Owner added.",
   )
   Object.assign(newOwner, {
@@ -172,9 +195,7 @@ async function addOwner() {
 function deleteOwner(ownerId: string) {
   return run(
     () =>
-      api(`/applications/${applicationId}/owners/${ownerId}`, {
-        method: "DELETE",
-      }),
+      deleteBorrowerOwner(applicationId.value, ownerId, organizationId.value),
     "Owner removed.",
   )
 }
@@ -182,9 +203,7 @@ function deleteOwner(ownerId: string) {
 function submitApplication() {
   return run(
     () =>
-      api(`/applications/${applicationId}/submit`, {
-        method: "POST",
-      }),
+      submitBorrowerApplication(applicationId.value, organizationId.value),
     "Application submitted for matching.",
   )
 }
@@ -202,8 +221,11 @@ onMounted(refresh)
       providers.
     </p>
 
-    <div v-if="!applicationId" class="card error">
-      Set VITE_DEMO_APPLICATION_ID after creating a local application.
+    <div v-if="loading" class="card">
+      Loading application…
+    </div>
+    <div v-else-if="!applicationId" class="card error">
+      No borrower application is available for this account.
     </div>
 
     <template v-else>

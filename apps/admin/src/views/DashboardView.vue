@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query"
-import { api } from "@moneybee/api-client"
-const query = useQuery({queryKey: ["admin-dashboard"], queryFn: () => api<any>("/admin/dashboard")})
+import { api, ENDPOINTS } from "@moneybee/api-client"
+const query = useQuery({queryKey: ["admin-dashboard"], queryFn: () => api<any>(ENDPOINTS.admin.dashboard)})
 </script>
 <template><div class="container"><span class="eyebrow">OPERATIONS</span><h2>MoneyBee control center</h2>
   <div v-if="query.error.value" class="card error">{{ query.error.value }}</div>

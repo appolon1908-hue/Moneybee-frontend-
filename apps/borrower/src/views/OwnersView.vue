@@ -1,19 +1,18 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue"
-import { api } from "@moneybee/api-client"
+import {
+  createBorrowerOwner,
+  deleteBorrowerOwner,
+  getActiveBorrowerApplication,
+  getAuthContext,
+  listBorrowerOwners,
+  type BorrowerOwner,
+} from "@moneybee/api-client"
 
-type Owner = {
-  id: string
-  first_name: string
-  last_name: string
-  ownership_percent: number
-  title: string | null
-  email: string | null
-  phone: string | null
-}
-
-const applicationId = import.meta.env.VITE_DEMO_APPLICATION_ID || ""
-const owners = ref<Owner[]>([])
+const organizationId = ref("")
+const applicationId = ref("")
+const owners = ref<BorrowerOwner[]>([])
+const loading = ref(true)
 const busy = ref(false)
 const message = ref("")
 const error = ref("")
@@ -31,33 +30,42 @@ function describe(caught: unknown) {
 }
 
 async function refresh() {
-  if (!applicationId) return
-  owners.value = await api<Owner[]>(`/applications/${applicationId}/owners`)
+  if (!applicationId.value) return
+  owners.value = await listBorrowerOwners(applicationId.value, organizationId.value)
 }
 
-onMounted(async () => {
+async function load() {
+  loading.value = true
+  error.value = ""
   try {
+    const context = await getAuthContext()
+    organizationId.value = context.active_organization_id ?? ""
+    const application = await getActiveBorrowerApplication(organizationId.value)
+    applicationId.value = application?.id ?? ""
     await refresh()
   } catch (caught) {
     error.value = describe(caught)
+  } finally {
+    loading.value = false
   }
-})
+}
 
 async function add() {
   busy.value = true
   message.value = ""
   error.value = ""
   try {
-    await api(`/applications/${applicationId}/owners`, {
-      method: "POST",
-      body: JSON.stringify({
+    await createBorrowerOwner(
+      applicationId.value,
+      {
         ...owner,
         title: owner.title || null,
         email: owner.email || null,
         phone: owner.phone || null,
         address: {},
-      }),
-    })
+      },
+      organizationId.value,
+    )
     Object.assign(owner, {
       first_name: "",
       last_name: "",
@@ -79,9 +87,7 @@ async function remove(ownerId: string) {
   busy.value = true
   error.value = ""
   try {
-    await api(`/applications/${applicationId}/owners/${ownerId}`, {
-      method: "DELETE",
-    })
+    await deleteBorrowerOwner(applicationId.value, ownerId, organizationId.value)
     message.value = "Owner removed."
     await refresh()
   } catch (caught) {
@@ -90,6 +96,8 @@ async function remove(ownerId: string) {
     busy.value = false
   }
 }
+
+onMounted(load)
 </script>
 
 <template>
@@ -97,8 +105,11 @@ async function remove(ownerId: string) {
     <span class="eyebrow">APPLICATION · OWNERS</span>
     <h2>Business owners</h2>
     <p class="lede">Add every owner whose information is required for underwriting.</p>
-    <div v-if="!applicationId" class="card error">
-      Set VITE_DEMO_APPLICATION_ID after creating a local application.
+    <div v-if="loading" class="card">
+      Loading owners…
+    </div>
+    <div v-else-if="!applicationId" class="card error">
+      No borrower application is available for this account.
     </div>
     <template v-else>
       <div v-if="message" class="card notice" role="status">{{ message }}</div>

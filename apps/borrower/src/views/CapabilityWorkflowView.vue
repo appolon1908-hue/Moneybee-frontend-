@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
-import { api } from "@moneybee/api-client"
+import { getCapabilityFlags } from "@moneybee/api-client"
 
 const props = defineProps<{
   eyebrow: string
@@ -16,7 +16,7 @@ const error = ref("")
 onMounted(async () => {
   try {
     if (!props.capability) return
-    const capabilities = await api<Record<string, boolean>>("/me/capabilities")
+    const capabilities = await getCapabilityFlags()
     ready.value = Boolean(capabilities[props.capability])
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : "Request failed"

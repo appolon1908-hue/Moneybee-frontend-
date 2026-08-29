@@ -1,5 +1,6 @@
 import { api } from "./core"
 import { ENDPOINTS } from "./endpoints"
+import { withOrganization } from "./portal"
 
 export type BankAccount = {
   id: string
@@ -33,39 +34,41 @@ export type LinkSession = {
 }
 
 export const bankingApi = {
-  createLinkSession(applicationId: string) {
+  createLinkSession(applicationId: string, organizationId?: string | null) {
     return api<LinkSession>(
       ENDPOINTS.applications.bankLinkSession(applicationId),
-      {method: "POST"},
+      withOrganization(organizationId, {method: "POST"}),
     )
   },
 
-  exchange(applicationId: string, publicToken: string) {
+  exchange(applicationId: string, publicToken: string, organizationId?: string | null) {
     return api(
       ENDPOINTS.applications.bankExchange(applicationId),
-      {
+      withOrganization(organizationId, {
         method: "POST",
         body: JSON.stringify({public_token: publicToken}),
-      },
+      }),
     )
   },
 
-  sync(applicationId: string) {
+  sync(applicationId: string, organizationId?: string | null) {
     return api(
       ENDPOINTS.applications.bankSync(applicationId),
-      {method: "POST"},
+      withOrganization(organizationId, {method: "POST"}),
     )
   },
 
-  accounts(applicationId: string) {
+  accounts(applicationId: string, organizationId?: string | null) {
     return api<BankAccount[]>(
       ENDPOINTS.applications.bankAccounts(applicationId),
+      withOrganization(organizationId),
     )
   },
 
-  analysis(applicationId: string) {
+  analysis(applicationId: string, organizationId?: string | null) {
     return api<BankAnalysis | null>(
       ENDPOINTS.applications.bankAnalysis(applicationId),
+      withOrganization(organizationId),
     )
   },
 }

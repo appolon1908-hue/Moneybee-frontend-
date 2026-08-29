@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue"
-import { ApiProblem, api } from "@moneybee/api-client"
+import {
+  ApiProblem,
+  getActiveBorrowerApplication,
+  getAuthContext,
+  getBorrowerBusinessProfile,
+  saveBorrowerBusinessProfile,
+} from "@moneybee/api-client"
 
 type Business = {
   legal_name: string
@@ -13,7 +19,9 @@ type Business = {
   address: Record<string, string>
 }
 
-const applicationId = import.meta.env.VITE_DEMO_APPLICATION_ID || ""
+const organizationId = ref("")
+const applicationId = ref("")
+const loading = ref(true)
 const busy = ref(false)
 const message = ref("")
 const error = ref("")
@@ -32,29 +40,31 @@ function describe(caught: unknown) {
   return caught instanceof Error ? caught.message : "Request failed"
 }
 
-onMounted(async () => {
-  if (!applicationId) return
+async function load() {
+  loading.value = true
+  error.value = ""
   try {
-    Object.assign(
-      business,
-      await api<Business>(`/applications/${applicationId}/business`),
-    )
+    const context = await getAuthContext()
+    organizationId.value = context.active_organization_id ?? ""
+    const application = await getActiveBorrowerApplication(organizationId.value)
+    applicationId.value = application?.id ?? ""
+    if (!applicationId.value) return
+    Object.assign(business, await getBorrowerBusinessProfile(applicationId.value, organizationId.value))
   } catch (caught) {
     if (!(caught instanceof ApiProblem && caught.status === 404)) {
       error.value = describe(caught)
     }
+  } finally {
+    loading.value = false
   }
-})
+}
 
 async function save() {
   busy.value = true
   message.value = ""
   error.value = ""
   try {
-    await api(`/applications/${applicationId}/business`, {
-      method: "PUT",
-      body: JSON.stringify(business),
-    })
+    await saveBorrowerBusinessProfile(applicationId.value, business, organizationId.value)
     message.value = "Business information saved."
   } catch (caught) {
     error.value = describe(caught)
@@ -62,6 +72,8 @@ async function save() {
     busy.value = false
   }
 }
+
+onMounted(load)
 </script>
 
 <template>
@@ -69,8 +81,11 @@ async function save() {
     <span class="eyebrow">APPLICATION · BUSINESS</span>
     <h2>Business information</h2>
     <p class="lede">Tell us about the legal business requesting funding.</p>
-    <div v-if="!applicationId" class="card error">
-      Set VITE_DEMO_APPLICATION_ID after creating a local application.
+    <div v-if="loading" class="card">
+      Loading business profile…
+    </div>
+    <div v-else-if="!applicationId" class="card error">
+      No borrower application is available for this account.
     </div>
     <section v-else class="card section">
       <div v-if="message" class="notice" role="status">{{ message }}</div>

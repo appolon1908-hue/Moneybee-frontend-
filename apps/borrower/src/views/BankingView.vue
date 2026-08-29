@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
 import {
-  api,
   bankingApi,
+  getActiveBorrowerApplication,
+  getAuthContext,
+  getCapabilityFlags,
   loadPlaid,
   money,
   type BankAccount,
   type BankAnalysis,
 } from "@moneybee/api-client"
 
-const applicationId = import.meta.env.VITE_DEMO_APPLICATION_ID || ""
+const organizationId = ref("")
+const applicationId = ref("")
 const capabilityReady = ref(false)
 const loading = ref(true)
 const busy = ref(false)
@@ -23,16 +26,20 @@ function describe(caught: unknown): string {
 }
 
 async function refresh() {
-  if (!applicationId || !capabilityReady.value) return
+  if (!applicationId.value || !capabilityReady.value) return
   ;[accounts.value, analysis.value] = await Promise.all([
-    bankingApi.accounts(applicationId),
-    bankingApi.analysis(applicationId),
+    bankingApi.accounts(applicationId.value, organizationId.value),
+    bankingApi.analysis(applicationId.value, organizationId.value),
   ])
 }
 
 onMounted(async () => {
   try {
-    const capabilities = await api<Record<string, boolean>>("/me/capabilities")
+    const context = await getAuthContext()
+    organizationId.value = context.active_organization_id ?? ""
+    const application = await getActiveBorrowerApplication(organizationId.value)
+    applicationId.value = application?.id ?? ""
+    const capabilities = await getCapabilityFlags(organizationId.value)
     capabilityReady.value = Boolean(capabilities["bank.live_connection"])
     await refresh()
   } catch (caught) {
@@ -47,7 +54,7 @@ async function connect() {
   message.value = ""
   error.value = ""
   try {
-    const session = await bankingApi.createLinkSession(applicationId)
+    const session = await bankingApi.createLinkSession(applicationId.value, organizationId.value)
     if (session.provider !== "plaid") {
       throw new Error("The configured browser banking provider is unsupported")
     }
@@ -58,8 +65,8 @@ async function connect() {
       token: session.link_token,
       onSuccess: async (publicToken) => {
         try {
-          await bankingApi.exchange(applicationId, publicToken)
-          await bankingApi.sync(applicationId)
+          await bankingApi.exchange(applicationId.value, publicToken, organizationId.value)
+          await bankingApi.sync(applicationId.value, organizationId.value)
           await refresh()
           message.value = "Bank account connected successfully."
         } catch (caught) {
@@ -86,7 +93,7 @@ async function sync() {
   message.value = ""
   error.value = ""
   try {
-    await bankingApi.sync(applicationId)
+    await bankingApi.sync(applicationId.value, organizationId.value)
     await refresh()
     message.value = "Bank information synchronized."
   } catch (caught) {
@@ -114,10 +121,10 @@ async function sync() {
       </div>
     </div>
 
-    <div v-if="!applicationId" class="card error">
-      Set VITE_DEMO_APPLICATION_ID after creating a local application.
+    <div v-if="loading" class="card">Checking provider readiness…</div>
+    <div v-else-if="!applicationId" class="card error">
+      No borrower application is available for this account.
     </div>
-    <div v-else-if="loading" class="card">Checking provider readiness…</div>
     <div v-else-if="error" class="card error" role="alert">{{ error }}</div>
     <div v-else-if="!capabilityReady" class="card">
       <strong>Not available yet</strong>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query"
-import { api } from "@moneybee/api-client"
-const query = useQuery({queryKey: ["crm-events"], queryFn: () => api<any[]>("/admin/crm/events")})
+import { api, ENDPOINTS } from "@moneybee/api-client"
+const query = useQuery({queryKey: ["crm-events"], queryFn: () => api<any[]>(ENDPOINTS.admin.crmEvents)})
 </script>
 <template><div class="container"><span class="eyebrow">INTEGRATIONS</span><h2>CRM event health</h2>
   <table><thead><tr><th>Event</th><th>Status</th><th>Attempts</th><th>Error</th></tr></thead>

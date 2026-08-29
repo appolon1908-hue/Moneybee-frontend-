@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
-import { api, money } from "@moneybee/api-client"
+import { api, ENDPOINTS, money } from "@moneybee/api-client"
 
 type Funding = {
   id: string
@@ -59,11 +59,11 @@ onMounted(async () => {
       reconciliations.value,
       controlPlane.value,
     ] = await Promise.all([
-      api<Funding[]>("/admin/fundings"),
-      api<Complaint[]>("/admin/complaints"),
-      api<IntegrationEvent[]>("/admin/integration-events"),
-      api<ReconciliationRun[]>("/admin/reconciliation-runs"),
-      api<ControlPlane>("/admin/integration-control-plane"),
+      api<Funding[]>(ENDPOINTS.admin.fundings),
+      api<Complaint[]>(ENDPOINTS.admin.complaints),
+      api<IntegrationEvent[]>(ENDPOINTS.admin.integrationEvents),
+      api<ReconciliationRun[]>(ENDPOINTS.admin.reconciliationRuns),
+      api<ControlPlane>(ENDPOINTS.admin.integrationControlPlane),
     ])
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : "Request failed"

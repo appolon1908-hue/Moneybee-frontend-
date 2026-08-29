@@ -1,25 +1,43 @@
 <script setup lang="ts">
-import { useQuery } from "@tanstack/vue-query"
-import { api } from "@moneybee/api-client"
+import { onMounted, ref } from "vue"
+import {
+  getActiveBorrowerApplication,
+  getAuthContext,
+  getBorrowerApplicationRequirements,
+  type BorrowerApplicationRequirements,
+} from "@moneybee/api-client"
 
-const applicationId = import.meta.env.VITE_DEMO_APPLICATION_ID || ""
-const query = useQuery({
-  queryKey: ["requirements", applicationId],
-  queryFn: () => api("/applications/" + applicationId + "/requirements"),
-  enabled: Boolean(applicationId),
+const applicationId = ref("")
+const requirements = ref<BorrowerApplicationRequirements | null>(null)
+const loading = ref(true)
+const error = ref("")
+
+onMounted(async () => {
+  try {
+    const context = await getAuthContext()
+    const application = await getActiveBorrowerApplication(context.active_organization_id)
+    applicationId.value = application?.id ?? ""
+    requirements.value = applicationId.value
+      ? await getBorrowerApplicationRequirements(applicationId.value, context.active_organization_id)
+      : null
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : "Request failed"
+  } finally {
+    loading.value = false
+  }
 })
 </script>
 
 <template>
   <div class="container">
     <span class="eyebrow">BORROWER PORTAL</span><h2>Your funding application</h2>
-    <div v-if="!applicationId" class="card">Set VITE_DEMO_APPLICATION_ID after creating a local application.</div>
-    <div v-else-if="query.isPending.value" class="card">Loading progress…</div>
-    <div v-else-if="query.error.value" class="card error">{{ query.error.value }}</div>
+    <div v-if="loading" class="card">Loading progress…</div>
+    <div v-else-if="!applicationId" class="card">No borrower application is available for this account.</div>
+    <div v-else-if="error" class="card error">{{ error }}</div>
     <div v-else class="card grid">
-      <strong>{{ (query.data.value as any)?.completion_percentage }}% complete</strong>
-      <div class="progress"><span :style="{width: (query.data.value as any)?.completion_percentage + '%'}"></span></div>
-      <div v-for="item in (query.data.value as any)?.requirements" :key="item.code">
+      <strong>{{ requirements?.completion_percentage }}% complete</strong>
+      <div class="progress"><span :style="{width: requirements?.completion_percentage + '%'}"></span></div>
+      <div v-for="item in requirements?.requirements || []" :key="item.code">
         {{ item.complete ? "✓" : "○" }} {{ item.code.replaceAll("_", " ") }}
       </div>
       <RouterLink class="button" to="/application">Continue application</RouterLink>

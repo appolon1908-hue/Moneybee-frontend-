@@ -183,6 +183,69 @@ export interface CompletedUpload {
   updated_at: string;
 }
 
+export interface BorrowerApplicationRequirements {
+  completion_percentage: number;
+  ready_to_submit: boolean;
+  requirements: Array<{ code: string; label: string; complete: boolean }>;
+}
+
+export interface BorrowerBusinessProfile {
+  legal_name: string;
+  dba: string | null;
+  entity_type: string | null;
+  state_formed: string | null;
+  industry: string | null;
+  naics: string | null;
+  website: string | null;
+  address: Record<string, string>;
+}
+
+export interface BorrowerFinancialProfile {
+  annual_revenue: number | string | null;
+  monthly_revenue: number | string | null;
+  monthly_expenses: number | string | null;
+  existing_debt: number | string | null;
+  existing_positions: number;
+}
+
+export interface BorrowerOwner {
+  id: string;
+  first_name: string;
+  last_name: string;
+  ownership_percent: number | string;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface BorrowerOwnerCreate {
+  first_name: string;
+  last_name: string;
+  ownership_percent: number;
+  title?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: Record<string, unknown>;
+}
+
+export interface BorrowerComplaint {
+  id: string;
+  application_id: string | null;
+  created_by: string;
+  category: string;
+  description: string;
+  priority: PortalTaskPriority;
+  status: string;
+  resolution: string | null;
+  created_at: string;
+}
+
+export interface BorrowerComplaintCreate {
+  category: string;
+  description: string;
+  priority: PortalTaskPriority;
+}
+
 export interface BorrowerCondition {
   id: string;
   submission_id: string;
@@ -395,6 +458,140 @@ export async function getBorrowerApplicationWorkspace(
     tasks,
     upload_sessions: [],
   };
+}
+
+export async function getActiveBorrowerApplication(
+  organizationId?: string,
+): Promise<BorrowerApplication | null> {
+  const workspace = await getBorrowerWorkspace(organizationId);
+  return workspace.applications[0] ?? null;
+}
+
+export function getBorrowerApplicationRequirements(
+  applicationId: string,
+  organizationId?: string,
+): Promise<BorrowerApplicationRequirements> {
+  return api<BorrowerApplicationRequirements>(
+    ENDPOINTS.applications.requirements(applicationId),
+    withOrganization(organizationId),
+  );
+}
+
+export function getBorrowerBusinessProfile(
+  applicationId: string,
+  organizationId?: string,
+): Promise<BorrowerBusinessProfile> {
+  return api<BorrowerBusinessProfile>(
+    ENDPOINTS.applications.business(applicationId),
+    withOrganization(organizationId),
+  );
+}
+
+export function saveBorrowerBusinessProfile(
+  applicationId: string,
+  payload: BorrowerBusinessProfile,
+  organizationId?: string,
+): Promise<BorrowerBusinessProfile> {
+  return api<BorrowerBusinessProfile>(
+    ENDPOINTS.applications.business(applicationId),
+    withOrganization(organizationId, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
+export function getBorrowerFinancialProfile(
+  applicationId: string,
+  organizationId?: string,
+): Promise<BorrowerFinancialProfile> {
+  return api<BorrowerFinancialProfile>(
+    ENDPOINTS.applications.financialProfile(applicationId),
+    withOrganization(organizationId),
+  );
+}
+
+export function saveBorrowerFinancialProfile(
+  applicationId: string,
+  payload: BorrowerFinancialProfile,
+  organizationId?: string,
+): Promise<BorrowerFinancialProfile> {
+  return api<BorrowerFinancialProfile>(
+    ENDPOINTS.applications.financialProfile(applicationId),
+    withOrganization(organizationId, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
+export function listBorrowerOwners(
+  applicationId: string,
+  organizationId?: string,
+): Promise<BorrowerOwner[]> {
+  return api<BorrowerOwner[]>(
+    ENDPOINTS.applications.owners(applicationId),
+    withOrganization(organizationId),
+  );
+}
+
+export function createBorrowerOwner(
+  applicationId: string,
+  payload: BorrowerOwnerCreate,
+  organizationId?: string,
+): Promise<BorrowerOwner> {
+  return api<BorrowerOwner>(
+    ENDPOINTS.applications.owners(applicationId),
+    withOrganization(organizationId, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
+export function deleteBorrowerOwner(
+  applicationId: string,
+  ownerId: string,
+  organizationId?: string,
+): Promise<void> {
+  return api<void>(
+    ENDPOINTS.applications.owner(applicationId, ownerId),
+    withOrganization(organizationId, { method: "DELETE" }),
+  );
+}
+
+export function submitBorrowerApplication(
+  applicationId: string,
+  organizationId?: string,
+): Promise<Record<string, unknown>> {
+  return api<Record<string, unknown>>(
+    ENDPOINTS.applications.submit(applicationId),
+    withOrganization(organizationId, { method: "POST" }),
+  );
+}
+
+export function listBorrowerComplaints(
+  applicationId: string,
+  organizationId?: string,
+): Promise<BorrowerComplaint[]> {
+  return api<BorrowerComplaint[]>(
+    ENDPOINTS.applications.complaints(applicationId),
+    withOrganization(organizationId),
+  );
+}
+
+export function createBorrowerComplaint(
+  applicationId: string,
+  payload: BorrowerComplaintCreate,
+  organizationId?: string,
+): Promise<BorrowerComplaint> {
+  return api<BorrowerComplaint>(
+    ENDPOINTS.applications.complaints(applicationId),
+    withOrganization(organizationId, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  );
 }
 
 export async function updateBorrowerTask(
