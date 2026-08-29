@@ -9,10 +9,13 @@
     "dev:admin": "pnpm --filter @moneybee/admin dev",
     "build": "pnpm -r --if-present build",
     "contracts:check": "node scripts/check-api-contracts.mjs",
+    "e2e:launch": "node scripts/run-launch-e2e.mjs",
+    "e2e:launch:external": "playwright test -c playwright.launch.config.ts",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "vitest run"
+    "test": "vitest run --exclude tests/e2e/**"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }
