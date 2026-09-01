@@ -30,6 +30,10 @@ export const ENDPOINTS = {
       `/borrower/applications/${encodeURIComponent(applicationId)}/documents/upload-sessions`,
     uploadSessionComplete: (sessionId: string) =>
       `/borrower/document-upload-sessions/${encodeURIComponent(sessionId)}/complete`,
+    commercialFinancingDisclosure: (offerId: string) =>
+      `/borrower/offers/${encodeURIComponent(offerId)}/commercial-financing-disclosure`,
+    commercialFinancingDisclosureAcknowledge: (offerId: string) =>
+      `/borrower/offers/${encodeURIComponent(offerId)}/commercial-financing-disclosure/acknowledge`,
   },
   applications: {
     collection: "/applications",
@@ -138,6 +142,21 @@ export const ENDPOINTS = {
     operationalExceptionResolve: (exceptionId: string) =>
       `/admin/operational-exceptions/${encodeURIComponent(exceptionId)}/resolve`,
     webhooksConfiguration: "/admin/webhooks/configuration",
+    compliance: {
+      overview: "/admin/compliance/overview",
+      adverseActionNotices: "/admin/compliance/adverse-action-notices",
+      commercialFinancingDisclosures:
+        "/admin/compliance/commercial-financing-disclosures",
+      commissionTaxRecords: "/admin/compliance/commission-tax-records",
+      commissionTaxRecordsGenerate:
+        "/admin/compliance/commission-tax-records/generate",
+      commissionTaxRecordTin: (recordId: string) =>
+        `/admin/compliance/commission-tax-records/${encodeURIComponent(recordId)}/tin`,
+      commissionTaxRecordFiling: (recordId: string) =>
+        `/admin/compliance/commission-tax-records/${encodeURIComponent(recordId)}/filing`,
+      disclosureAcknowledge: (offerId: string) =>
+        `/admin/compliance/offers/${encodeURIComponent(offerId)}/commercial-financing-disclosure/acknowledge`,
+    },
     catalogs: {
       leads: "/admin/catalog/leads",
       applications: "/admin/catalog/applications",
