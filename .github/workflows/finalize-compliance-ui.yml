@@ -1,0 +1,172 @@
+name: finalize-compliance-ui
+
+on:
+  push:
+    branches:
+      - feature/clear-compliance-operations-ui-20260901
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: finalize-compliance-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  finalize:
+    if: github.repository == 'appolon1908-hue/Moneybee-frontend-'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: feature/clear-compliance-operations-ui-20260901
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@10.15.0 --activate
+      - name: Make the implementation workflow independent of optional formatters
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          path = Path('.github/workflows/complete-compliance-ui.yml')
+          source = path.read_text(encoding='utf-8')
+          pattern = re.compile(
+              r'^      - name: Format implementation\n'
+              r'        run: \|\n'
+              r'(?P<body>(?:^          .*\n)+?)'
+              r'(?=^      - name: Validate frontend implementation\n)',
+              re.MULTILINE,
+          )
+          match = pattern.search(source)
+          if match and 'Prettier is not part of this repository toolchain' not in match.group(0):
+              body = match.group('body')
+              commands = ''.join(
+                  ('  ' + line if line.strip() else line)
+                  for line in body.splitlines(keepends=True)
+              )
+              replacement = (
+                  '      - name: Format implementation when Prettier is available\n'
+                  '        run: |\n'
+                  '          if pnpm exec prettier --version >/dev/null 2>&1; then\n'
+                  f'{commands}'
+                  '          else\n'
+                  '            echo "Prettier is not part of this repository toolchain; continuing to authoritative validation."\n'
+                  '          fi\n'
+              )
+              source = source[:match.start()] + replacement + source[match.end():]
+              path.write_text(source, encoding='utf-8')
+          PY
+      - name: Commit workflow correction
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/complete-compliance-ui.yml
+          if ! git diff --cached --quiet; then
+            git commit -m "ci: make UI completion formatter-tolerant"
+            git push origin HEAD:feature/clear-compliance-operations-ui-20260901
+          fi
+      - name: Dispatch implementation workflow and wait
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          gh workflow run complete-compliance-ui.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref feature/clear-compliance-operations-ui-20260901
+          run_id=""
+          for _ in $(seq 1 30); do
+            run_id="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow complete-compliance-ui.yml \
+              --branch feature/clear-compliance-operations-ui-20260901 \
+              --event workflow_dispatch \
+              --limit 5 \
+              --json databaseId,createdAt \
+              --jq ".[] | select(.createdAt >= \"$started\") | .databaseId" \
+              | head -n 1)"
+            if [ -n "$run_id" ]; then break; fi
+            sleep 5
+          done
+          test -n "$run_id"
+          gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status
+      - name: Refresh exact completed branch
+        run: |
+          git fetch origin feature/clear-compliance-operations-ui-20260901
+          git reset --hard origin/feature/clear-compliance-operations-ui-20260901
+          test -f packages/api-client/src/compliance.ts
+          test -f apps/admin/src/views/ComplianceView.vue
+      - name: Apply strict TypeScript and exact-money refinements
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('packages/api-client/src/compliance.ts')
+          source = path.read_text(encoding='utf-8')
+          source = source.replace(
+              'function queryString(values: Record<string, unknown>): string {',
+              'function queryString<T extends object>(values: T): string {',
+          )
+          source = source.replace(
+              'for (const [key, value] of Object.entries(values)) {',
+              'for (const [key, value] of Object.entries(values as Record<string, unknown>)) {',
+          )
+          path.write_text(source, encoding='utf-8')
+
+          view = Path('apps/admin/src/views/ComplianceView.vue')
+          ui = view.read_text(encoding='utf-8')
+          ui = ui.replace('    money,\n', '')
+          anchor = '''function formatApr(value: string | null): string {
+                return value === null ? "Not available" : `${Number(value).toFixed(2)}%`;
+              }
+'''
+          formatter = '''function formatMoney(value: string): string {
+                return new Intl.NumberFormat("en-US", {
+                  style: "currency",
+                  currency: "USD",
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }).format(Number(value));
+              }
+
+              function formatApr(value: string | null): string {
+                return value === null ? "Not available" : `${Number(value).toFixed(2)}%`;
+              }
+'''
+          if anchor in ui:
+              ui = ui.replace(anchor, formatter, 1)
+          ui = ui.replace('money(item.amount_financed)', 'formatMoney(item.amount_financed)')
+          ui = ui.replace('money(item.finance_charge)', 'formatMoney(item.finance_charge)')
+          ui = ui.replace('money(item.total_amount)', 'formatMoney(item.total_amount)')
+          view.write_text(ui, encoding='utf-8')
+          PY
+      - name: Install and validate exact branch
+        run: |
+          pnpm install --frozen-lockfile
+          if pnpm exec prettier --version >/dev/null 2>&1; then
+            pnpm exec prettier --write \
+              packages/api-client/src/compliance.ts \
+              apps/admin/src/views/ComplianceView.vue
+          fi
+          pnpm typecheck
+          pnpm test
+          pnpm build
+          python scripts/validate_frontend_scaffold.py
+      - name: Commit strict refinements
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/api-client/src/compliance.ts apps/admin/src/views/ComplianceView.vue
+          if ! git diff --cached --quiet; then
+            git commit -m "fix(admin): enforce typed queries and exact money display"
+            git push origin HEAD:feature/clear-compliance-operations-ui-20260901
+          fi
