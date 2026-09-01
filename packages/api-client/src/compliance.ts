@@ -1,7 +1,7 @@
 import { api } from "./core";
 import { ENDPOINTS } from "./endpoints";
 
-export interface Page<T> {
+export interface CompliancePage<T> {
   items: T[];
   total: number;
   limit: number;
@@ -97,10 +97,10 @@ export interface CommissionTaxRecordFilingInput {
   filing_reference: string;
 }
 
-function queryString(values: Record<string, string | number | boolean | undefined>): string {
+function queryString<T extends object>(values: T): string {
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(values)) {
-    if (value === undefined || value === "") continue;
+  for (const [key, value] of Object.entries(values as Record<string, unknown>)) {
+    if (value === undefined || value === null || value === "") continue;
     params.set(key, String(value));
   }
   const encoded = params.toString();
@@ -113,24 +113,24 @@ export function getComplianceOverview(): Promise<ComplianceOverview> {
 
 export function listAdverseActionNotices(
   query: AdverseActionNoticeQuery = {},
-): Promise<Page<AdverseActionNotice>> {
-  return api<Page<AdverseActionNotice>>(
+): Promise<CompliancePage<AdverseActionNotice>> {
+  return api<CompliancePage<AdverseActionNotice>>(
     `${ENDPOINTS.admin.compliance.adverseActionNotices}${queryString(query)}`,
   );
 }
 
 export function listCommercialFinancingDisclosures(
   query: CommercialFinancingDisclosureQuery = {},
-): Promise<Page<CommercialFinancingDisclosure>> {
-  return api<Page<CommercialFinancingDisclosure>>(
+): Promise<CompliancePage<CommercialFinancingDisclosure>> {
+  return api<CompliancePage<CommercialFinancingDisclosure>>(
     `${ENDPOINTS.admin.compliance.commercialFinancingDisclosures}${queryString(query)}`,
   );
 }
 
 export function listCommissionTaxRecords(
   query: CommissionTaxRecordQuery = {},
-): Promise<Page<CommissionTaxRecord>> {
-  return api<Page<CommissionTaxRecord>>(
+): Promise<CompliancePage<CommissionTaxRecord>> {
+  return api<CompliancePage<CommissionTaxRecord>>(
     `${ENDPOINTS.admin.compliance.commissionTaxRecords}${queryString(query)}`,
   );
 }
