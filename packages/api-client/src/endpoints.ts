@@ -2,11 +2,13 @@ export const ENDPOINTS = {
   identity: {
     context: "/auth/context",
     me: "/me",
+    permissions: "/me/permissions",
     capabilities: "/me/capabilities",
     notificationPreferences: "/me/notification-preferences",
     portalNavigation: "/portal/navigation",
   },
   public: {
+    products: "/public/products",
     prequalifications: "/public/prequalifications",
     contactRequests: "/public/contact-requests",
     callbackRequests: "/public/callback-requests",
@@ -39,6 +41,8 @@ export const ENDPOINTS = {
     collection: "/applications",
     fromLead: (leadId: string) => `/applications/from-lead/${encodeURIComponent(leadId)}`,
     item: (applicationId: string) => `/applications/${encodeURIComponent(applicationId)}`,
+    status: (applicationId: string) =>
+      `/applications/${encodeURIComponent(applicationId)}/status`,
     requirements: (applicationId: string) =>
       `/applications/${encodeURIComponent(applicationId)}/requirements`,
     timeline: (applicationId: string) =>
@@ -80,6 +84,7 @@ export const ENDPOINTS = {
     submit: (conditionId: string) => `/conditions/${encodeURIComponent(conditionId)}/submit`,
   },
   offers: {
+    item: (offerId: string) => `/offers/${encodeURIComponent(offerId)}`,
     accept: (offerId: string) => `/offers/${encodeURIComponent(offerId)}/accept`,
   },
   lender: {

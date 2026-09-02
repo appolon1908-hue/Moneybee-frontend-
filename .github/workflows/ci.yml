@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: appolon1908-hue/Moneybee-Backend
-          ref: ${{ vars.MONEYBEE_BACKEND_CONTRACT_REF || 'claude/system-review-architecture-8vo66p' }}
+          ref: ${{ vars.MONEYBEE_BACKEND_CONTRACT_REF || 'release/moneybee-repository-complete-20260902' }}
           path: moneybee-backend
       - name: Record exact backend contract head
         working-directory: moneybee-backend
