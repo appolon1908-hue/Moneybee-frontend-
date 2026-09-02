@@ -21,15 +21,17 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Checkout MoneyBee backend contract source
+      - name: Checkout exact MoneyBee backend contract source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: appolon1908-hue/Moneybee-Backend
-          ref: ${{ vars.MONEYBEE_BACKEND_CONTRACT_REF || 'release/moneybee-repository-complete-20260902' }}
+          ref: bb5e00016be80c036500fb8cb382b3c47fd88c9b
           path: moneybee-backend
-      - name: Record exact backend contract head
+      - name: Verify and record the reviewed backend contract head
         working-directory: moneybee-backend
-        run: git rev-parse HEAD | tee ../moneybee-backend-contract-sha.txt
+        run: |
+          test "$(git rev-parse HEAD)" = "bb5e00016be80c036500fb8cb382b3c47fd88c9b"
+          git rev-parse HEAD | tee ../moneybee-backend-contract-sha.txt
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
