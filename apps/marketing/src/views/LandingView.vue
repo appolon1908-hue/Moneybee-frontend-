@@ -12,11 +12,12 @@ const googleLoginUrl = `${borrowerUrl}/auth/login?provider=google`
 
 <template>
   <header class="container topbar">
-    <a class="brand" href="/"><span class="mark">MB</span> MoneyBeeLoans</a>
+    <a class="brand" href="/"><span class="mark">MB</span><span>MoneyBeeLoans</span><span class="domain-label">moneybeeloan.com</span></a>
     <nav aria-label="Primary">
       <a href="/how-it-works">How it works</a><a href="#uses">Uses</a><a href="/faq">FAQ</a>
       <a href="/for-lenders">For lenders</a>
-      <a :href="googleLoginUrl">Google sign in</a>
+      <a href="/callback">Request callback</a>
+      <a class="button secondary" :href="googleLoginUrl">Google sign in</a>
       <a class="button" :href="emailLoginUrl">Email sign in</a>
     </nav>
   </header>
@@ -32,18 +33,9 @@ const googleLoginUrl = `${borrowerUrl}/auth/login?provider=google`
           <a class="button secondary" href="/callback">Request callback</a>
         </div>
         <div class="funding-visual" aria-label="MoneyBee funding review summary">
-          <div>
-            <span>Requested</span>
-            <strong>$50k</strong>
-          </div>
-          <div>
-            <span>Review</span>
-            <strong>Secure</strong>
-          </div>
-          <div>
-            <span>Next step</span>
-            <strong>Portal</strong>
-          </div>
+          <div><span>Request</span><strong>Secure</strong></div>
+          <div><span>Review</span><strong>Clear</strong></div>
+          <div><span>Next step</span><strong>Portal</strong></div>
         </div>
       </div>
       <PrequalForm id="prequal" :landing-page="props.slug" />

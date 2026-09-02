@@ -9,7 +9,7 @@ const borrowerUrl = String(import.meta.env.VITE_BORROWER_URL || "http://localhos
 
 <template>
   <header class="container topbar">
-    <a class="brand" href="/"><span class="mark">MB</span> MoneyBeeLoans</a>
+    <a class="brand" href="/"><span class="mark">MB</span><span>MoneyBeeLoans</span><span class="domain-label">moneybeeloan.com</span></a>
     <nav aria-label="Primary">
       <a href="/business-loans">Funding</a>
       <a href="/for-lenders">For lenders</a>
