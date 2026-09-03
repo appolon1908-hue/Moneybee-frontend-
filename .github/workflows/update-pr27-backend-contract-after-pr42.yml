@@ -1,0 +1,139 @@
+name: update-pr27-backend-contract-after-pr42
+
+on:
+  push:
+    branches:
+      - release/moneybee-frontend-repository-complete-20260902
+    paths:
+      - .github/workflows/update-pr27-backend-contract-after-pr42.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+env:
+  BACKEND_REPOSITORY: appolon1908-hue/Moneybee-Backend
+  BACKEND_PR: "42"
+  FRONTEND_PR: "27"
+  OLD_BACKEND_CONTRACT_SHA: bb5e00016be80c036500fb8cb382b3c47fd88c9b
+
+jobs:
+  update-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Wait for protected backend merge
+        id: backend
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          merged_sha=""
+          for attempt in $(seq 1 100); do
+            payload="$(curl --fail --silent --show-error \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${BACKEND_REPOSITORY}/pulls/${BACKEND_PR}")"
+            if test "$(jq -r '.merged' <<<"$payload")" = "true"; then
+              merged_sha="$(jq -r '.merge_commit_sha' <<<"$payload")"
+              break
+            fi
+            sleep 15
+          done
+          test -n "$merged_sha"
+          test "$merged_sha" != "null"
+          test "${#merged_sha}" -eq 40
+          curl --fail --silent --show-error \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${BACKEND_REPOSITORY}/commits/${merged_sha}" \
+            >/dev/null
+          echo "sha=${merged_sha}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: release/moneybee-frontend-repository-complete-20260902
+          fetch-depth: 1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+      - uses: pnpm/action-setup@41ff726559b295e88c1e1f0c2451fb5ea6c49965 # v4.2.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Replace candidate backend contract with protected merge SHA
+        env:
+          NEW_BACKEND_CONTRACT_SHA: ${{ steps.backend.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import os
+
+          old = os.environ["OLD_BACKEND_CONTRACT_SHA"]
+          new = os.environ["NEW_BACKEND_CONTRACT_SHA"]
+          changed = []
+          for path in Path(".").rglob("*"):
+              if not path.is_file() or ".git" in path.parts:
+                  continue
+              try:
+                  text = path.read_text(encoding="utf-8")
+              except (UnicodeDecodeError, OSError):
+                  continue
+              if old not in text:
+                  continue
+              path.write_text(text.replace(old, new), encoding="utf-8")
+              changed.append(str(path))
+          if not changed:
+              raise SystemExit(f"No frontend contract reference found for {old}")
+          print("UPDATED_BACKEND_CONTRACT_SHA=" + new)
+          print("UPDATED_FILES=" + ",".join(changed))
+          PY
+          git rm .github/workflows/update-pr27-backend-contract-after-pr42.yml
+          if git grep -n "$OLD_BACKEND_CONTRACT_SHA" -- . ':!.github/workflows/update-pr27-backend-contract-after-pr42.yml'; then
+            echo "Stale backend candidate SHA remains" >&2
+            exit 1
+          fi
+      - name: Validate exact protected backend contract
+        env:
+          MONEYBEE_BACKEND_CONTRACT_SHA: ${{ steps.backend.outputs.sha }}
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm contracts:check
+          pnpm typecheck
+          pnpm test
+          pnpm build
+          if pnpm run | grep -q 'e2e:launch'; then pnpm e2e:launch; fi
+          git diff --check
+          test "$(git ls-remote https://github.com/${BACKEND_REPOSITORY}.git ${MONEYBEE_BACKEND_CONTRACT_SHA} | wc -l)" -ge 0
+      - name: Commit and push protected contract lock
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}
+          BACKEND_SHA: ${{ steps.backend.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git add -A
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "release: lock frontend to protected backend ${BACKEND_SHA}"
+          git push origin "HEAD:${BRANCH_NAME}"
+      - name: Update pull request and request fresh review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BACKEND_SHA: ${{ steps.backend.outputs.sha }}
+        run: |
+          set -euo pipefail
+          head_sha="$(git rev-parse HEAD)"
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          body="Frontend PR #27 is now locked to the protected backend PR #42 merge SHA \`${BACKEND_SHA}\` at frontend head \`${head_sha}\`.
+
+Frozen install, contract drift, TypeScript, unit tests, all application builds, and available launch E2E completed before the push. Evidence: ${run_url}
+
+No deployment, server access, SSH change, credential addition, or external-effect activation occurred. Fresh exact-head CI and independent approval remain required."
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${FRONTEND_PR}/comments" -f body="$body"
+          gh pr ready "$FRONTEND_PR" || true
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/pulls/${FRONTEND_PR}/requested_reviewers" -f 'reviewers[]=kazan555' || true
