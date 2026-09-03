@@ -31,6 +31,10 @@ jobs:
       attestations: write
     env:
       RELEASE_SOURCE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.source_sha || github.sha }}
+      NODE_BASE_IMAGE: node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32
+      NGINX_BASE_IMAGE: nginx:alpine@sha256:a9ae6f6d078d477e21323310498e5196cb2b7c0aedd9e07b7306612077227d7c
+      GOOGLE_LOGIN_ENABLED: "false"
+      GOOGLE_IDP_ALIAS: google
     strategy:
       fail-fast: false
       matrix:
@@ -44,10 +48,6 @@ jobs:
       - name: Verify protected source and digest-pinned base images
         env:
           SOURCE_SHA: ${{ env.RELEASE_SOURCE_SHA }}
-          NODE_BASE_IMAGE: ${{ vars.NODE_BASE_IMAGE }}
-          NGINX_BASE_IMAGE: ${{ vars.NGINX_BASE_IMAGE }}
-          GOOGLE_LOGIN_ENABLED: ${{ vars.VITE_GOOGLE_LOGIN_ENABLED }}
-          GOOGLE_IDP_ALIAS: ${{ vars.VITE_GOOGLE_IDP_ALIAS }}
         run: |
           set -euo pipefail
           test "$GITHUB_REF" = "refs/heads/release/staging"
@@ -61,27 +61,19 @@ jobs:
             test -n "$GOOGLE_IDP_ALIAS"
           fi
 
-      - name: Resolve portal client ID
+      - name: Resolve reviewed portal client ID
         id: client
         env:
           APP: ${{ matrix.app }}
-          MARKETING: ${{ vars.MARKETING_OIDC_CLIENT_ID }}
-          BORROWER: ${{ vars.BORROWER_OIDC_CLIENT_ID }}
-          LENDER: ${{ vars.LENDER_OIDC_CLIENT_ID }}
-          ADMIN: ${{ vars.ADMIN_OIDC_CLIENT_ID }}
         run: |
           set -euo pipefail
           case "$APP" in
-            marketing) value="$MARKETING" ;;
-            borrower) value="$BORROWER" ;;
-            lender) value="$LENDER" ;;
-            admin) value="$ADMIN" ;;
+            marketing) value="" ;;
+            borrower) value="moneybee-borrower" ;;
+            lender) value="moneybee-lender" ;;
+            admin) value="moneybee-admin" ;;
             *) echo "Unknown app: $APP" >&2; exit 1 ;;
           esac
-          if [[ "$APP" != marketing && -z "$value" ]]; then
-            echo "Missing OIDC client ID for $APP" >&2
-            exit 1
-          fi
           echo "value=$value" >> "$GITHUB_OUTPUT"
 
       - id: build_date
@@ -112,8 +104,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             APP=${{ matrix.app }}
-            NODE_BASE_IMAGE=${{ vars.NODE_BASE_IMAGE }}
-            NGINX_BASE_IMAGE=${{ vars.NGINX_BASE_IMAGE }}
+            NODE_BASE_IMAGE=${{ env.NODE_BASE_IMAGE }}
+            NGINX_BASE_IMAGE=${{ env.NGINX_BASE_IMAGE }}
             SOURCE_SHA=${{ env.RELEASE_SOURCE_SHA }}
             BUILD_DATE=${{ steps.build_date.outputs.value }}
             VITE_API_BASE_URL=https://api-staging.moneybeeloan.com/api/v2
@@ -123,8 +115,8 @@ jobs:
             VITE_OIDC_AUTHORITY=https://auth.codestra.co/realms/codestra
             VITE_OIDC_CLIENT_ID=${{ steps.client.outputs.value }}
             VITE_OIDC_AUDIENCE=moneybee-api
-            VITE_GOOGLE_LOGIN_ENABLED=${{ vars.VITE_GOOGLE_LOGIN_ENABLED }}
-            VITE_GOOGLE_IDP_ALIAS=${{ vars.VITE_GOOGLE_IDP_ALIAS }}
+            VITE_GOOGLE_LOGIN_ENABLED=${{ env.GOOGLE_LOGIN_ENABLED }}
+            VITE_GOOGLE_IDP_ALIAS=${{ env.GOOGLE_IDP_ALIAS }}
           provenance: mode=max
           sbom: true
           cache-from: type=gha,scope=frontend-${{ matrix.app }}
@@ -155,10 +147,6 @@ jobs:
         env:
           APP: ${{ matrix.app }}
           CLIENT_ID: ${{ steps.client.outputs.value }}
-          NODE_BASE_IMAGE: ${{ vars.NODE_BASE_IMAGE }}
-          NGINX_BASE_IMAGE: ${{ vars.NGINX_BASE_IMAGE }}
-          GOOGLE_LOGIN_ENABLED: ${{ vars.VITE_GOOGLE_LOGIN_ENABLED }}
-          GOOGLE_IDP_ALIAS: ${{ vars.VITE_GOOGLE_IDP_ALIAS }}
         run: |
           set -euo pipefail
           mkdir -p evidence
@@ -170,6 +158,7 @@ jobs:
             pnpm-lock.yaml
             pnpm-workspace.yaml
             deploy/compose.frontend.yml
+            deploy/OIDC_CLIENTS.md
           )
           : >evidence/configuration-files.sha256
           for file in "${config_files[@]}"; do
@@ -208,7 +197,7 @@ jobs:
 
       - name: Generate signed build provenance
         id: provenance
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
         with:
           subject-name: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}
           subject-digest: ${{ steps.build.outputs.digest }}
@@ -217,7 +206,7 @@ jobs:
 
       - name: Generate signed SBOM attestation
         id: sbom_attestation
-        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d
         with:
           subject-name: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}
           subject-digest: ${{ steps.build.outputs.digest }}
