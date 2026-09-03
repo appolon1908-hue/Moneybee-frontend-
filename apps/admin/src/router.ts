@@ -59,7 +59,15 @@ export default createRouter({
       props: { title: "Underwriting reviews", endpoint: ENDPOINTS.admin.catalogs.underwritingReviews, description: "Authoritative manual decisions with policy and reason codes." },
     },
     {path: "/finance", component: FinanceView, meta: { requiresAuth: true, title: "Financial ledger" }},
-    {path: "/compliance", component: ComplianceView, meta: { requiresAuth: true, title: "Compliance records" }},
+    {
+      path: "/compliance",
+      component: ComplianceView,
+      meta: {
+        requiresAuth: true,
+        title: "Compliance records",
+        permission: "compliance.read",
+      },
+    },
     {
       path: "/sla-alerts",
       component: ResourceView,

@@ -1,52 +1,91 @@
 <script setup lang="ts">
-const navigation = [
+import { computed, inject, onMounted, ref } from "vue"
+import {
+  AUTH_MANAGER,
+  hasPermission,
+  type LocalPrincipal,
+} from "@moneybee/auth"
+
+interface NavigationItem {
+  label: string
+  path: string
+  permission?: string
+}
+
+interface NavigationGroup {
+  label: string
+  items: NavigationItem[]
+}
+
+const auth = inject(AUTH_MANAGER)
+const principal = ref<LocalPrincipal | null>(null)
+
+const navigation: NavigationGroup[] = [
   {
     label: "Work",
     items: [
-      ["Dashboard", "/dashboard"],
-      ["Operations portal", "/operations-portal"],
-      ["Applications", "/applications"],
-      ["Underwriting", "/underwriting"],
-      ["Offers", "/offers"],
-      ["SLA alerts", "/sla-alerts"],
+      {label: "Dashboard", path: "/dashboard"},
+      {label: "Operations portal", path: "/operations-portal"},
+      {label: "Applications", path: "/applications"},
+      {label: "Underwriting", path: "/underwriting"},
+      {label: "Offers", path: "/offers"},
+      {label: "SLA alerts", path: "/sla-alerts"},
     ],
   },
   {
     label: "Marketplace",
     items: [
-      ["Leads", "/leads"],
-      ["Lender programs", "/lenders"],
-      ["Matches", "/matches"],
-      ["Submissions", "/submissions"],
-      ["Lifecycle operations", "/operations"],
+      {label: "Leads", path: "/leads"},
+      {label: "Lender programs", path: "/lenders"},
+      {label: "Matches", path: "/matches"},
+      {label: "Submissions", path: "/submissions"},
+      {label: "Lifecycle operations", path: "/operations"},
     ],
   },
   {
     label: "Finance & compliance",
     items: [
-      ["Financial ledger", "/finance"],
-      ["Compliance records", "/compliance"],
+      {label: "Financial ledger", path: "/finance"},
+      {
+        label: "Compliance records",
+        path: "/compliance",
+        permission: "compliance.read",
+      },
     ],
   },
   {
     label: "Integrations",
     items: [
-      ["Public intakes", "/public-intakes"],
-      ["CRM deliveries", "/crm-deliveries"],
-      ["Integration inbox", "/integration-inbox"],
-      ["Operational exceptions", "/operational-exceptions"],
-      ["CRM control", "/crm"],
+      {label: "Public intakes", path: "/public-intakes"},
+      {label: "CRM deliveries", path: "/crm-deliveries"},
+      {label: "Integration inbox", path: "/integration-inbox"},
+      {label: "Operational exceptions", path: "/operational-exceptions"},
+      {label: "CRM control", path: "/crm"},
     ],
   },
   {
     label: "Administration",
     items: [
-      ["Users", "/users"],
-      ["Audit", "/audit"],
-      ["System readiness", "/system"],
+      {label: "Users", path: "/users"},
+      {label: "Audit", path: "/audit"},
+      {label: "System readiness", path: "/system"},
     ],
   },
-] as const
+]
+
+const visibleNavigation = computed(() => navigation
+  .map((group) => ({
+    ...group,
+    items: group.items.filter(
+      (item) => !item.permission || hasPermission(principal.value, item.permission),
+    ),
+  }))
+  .filter((group) => group.items.length > 0),
+)
+
+onMounted(async () => {
+  principal.value = await auth?.getLocalPrincipal() || null
+})
 </script>
 
 <template>
@@ -57,10 +96,10 @@ const navigation = [
         <span><strong>MoneyBee</strong><small>Control Center</small></span>
       </RouterLink>
       <nav aria-label="Control Center navigation">
-        <section v-for="group in navigation" :key="group.label" class="nav-group">
+        <section v-for="group in visibleNavigation" :key="group.label" class="nav-group">
           <p>{{ group.label }}</p>
-          <RouterLink v-for="item in group.items" :key="item[1]" :to="item[1]">
-            {{ item[0] }}
+          <RouterLink v-for="item in group.items" :key="item.path" :to="item.path">
+            {{ item.label }}
           </RouterLink>
         </section>
       </nav>
