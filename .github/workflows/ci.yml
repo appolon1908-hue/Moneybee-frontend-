@@ -21,16 +21,21 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Checkout MoneyBee backend contract source
+      - name: Checkout exact protected MoneyBee backend contract
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: appolon1908-hue/Moneybee-Backend
-          ref: ${{ vars.MONEYBEE_BACKEND_CONTRACT_REF || 'main' }}
+          ref: 474ab4eb96898f2d428b03b5fcee989b5b4182f9
           path: moneybee-backend
+      - name: Verify and record the protected backend merge
+        working-directory: moneybee-backend
+        run: |
+          test "$(git rev-parse HEAD)" = "474ab4eb96898f2d428b03b5fcee989b5b4182f9"
+          git rev-parse HEAD | tee ../moneybee-backend-contract-sha.txt
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.13"
           cache: pip
@@ -56,6 +61,16 @@ jobs:
           pnpm test
           pnpm build
           python scripts/validate_frontend_scaffold.py
+      - name: Upload exact contract evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: moneybee-frontend-contract-${{ github.run_id }}
+          path: |
+            moneybee-backend-contract-sha.txt
+            moneybee-backend/openapi.json
+          if-no-files-found: error
+          retention-days: 14
 
   containers:
     needs: validate

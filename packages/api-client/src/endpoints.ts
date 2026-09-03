@@ -2,11 +2,13 @@ export const ENDPOINTS = {
   identity: {
     context: "/auth/context",
     me: "/me",
+    permissions: "/me/permissions",
     capabilities: "/me/capabilities",
     notificationPreferences: "/me/notification-preferences",
     portalNavigation: "/portal/navigation",
   },
   public: {
+    products: "/public/products",
     prequalifications: "/public/prequalifications",
     contactRequests: "/public/contact-requests",
     callbackRequests: "/public/callback-requests",
@@ -30,11 +32,17 @@ export const ENDPOINTS = {
       `/borrower/applications/${encodeURIComponent(applicationId)}/documents/upload-sessions`,
     uploadSessionComplete: (sessionId: string) =>
       `/borrower/document-upload-sessions/${encodeURIComponent(sessionId)}/complete`,
+    commercialFinancingDisclosure: (offerId: string) =>
+      `/borrower/offers/${encodeURIComponent(offerId)}/commercial-financing-disclosure`,
+    commercialFinancingDisclosureAcknowledge: (offerId: string) =>
+      `/borrower/offers/${encodeURIComponent(offerId)}/commercial-financing-disclosure/acknowledge`,
   },
   applications: {
     collection: "/applications",
     fromLead: (leadId: string) => `/applications/from-lead/${encodeURIComponent(leadId)}`,
     item: (applicationId: string) => `/applications/${encodeURIComponent(applicationId)}`,
+    status: (applicationId: string) =>
+      `/applications/${encodeURIComponent(applicationId)}/status`,
     requirements: (applicationId: string) =>
       `/applications/${encodeURIComponent(applicationId)}/requirements`,
     timeline: (applicationId: string) =>
@@ -76,6 +84,7 @@ export const ENDPOINTS = {
     submit: (conditionId: string) => `/conditions/${encodeURIComponent(conditionId)}/submit`,
   },
   offers: {
+    item: (offerId: string) => `/offers/${encodeURIComponent(offerId)}`,
     accept: (offerId: string) => `/offers/${encodeURIComponent(offerId)}/accept`,
   },
   lender: {
@@ -138,6 +147,21 @@ export const ENDPOINTS = {
     operationalExceptionResolve: (exceptionId: string) =>
       `/admin/operational-exceptions/${encodeURIComponent(exceptionId)}/resolve`,
     webhooksConfiguration: "/admin/webhooks/configuration",
+    compliance: {
+      overview: "/admin/compliance/overview",
+      adverseActionNotices: "/admin/compliance/adverse-action-notices",
+      commercialFinancingDisclosures:
+        "/admin/compliance/commercial-financing-disclosures",
+      commissionTaxRecords: "/admin/compliance/commission-tax-records",
+      commissionTaxRecordsGenerate:
+        "/admin/compliance/commission-tax-records/generate",
+      commissionTaxRecordTin: (recordId: string) =>
+        `/admin/compliance/commission-tax-records/${encodeURIComponent(recordId)}/tin`,
+      commissionTaxRecordFiling: (recordId: string) =>
+        `/admin/compliance/commission-tax-records/${encodeURIComponent(recordId)}/filing`,
+      disclosureAcknowledge: (offerId: string) =>
+        `/admin/compliance/offers/${encodeURIComponent(offerId)}/commercial-financing-disclosure/acknowledge`,
+    },
     catalogs: {
       leads: "/admin/catalog/leads",
       applications: "/admin/catalog/applications",

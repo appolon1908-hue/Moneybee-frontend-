@@ -9,6 +9,14 @@ export interface PortalGuard {
   permission?: string
 }
 
+export function requiredRoutePermission(
+  meta: Record<string, unknown>,
+): string | undefined {
+  return typeof meta.permission === "string" && meta.permission.trim()
+    ? meta.permission.trim()
+    : undefined
+}
+
 export function authRoutes(): RouteRecordRaw[] {
   return [
     { path: "/auth/login", component: AuthRouteView, meta: { authAction: "login", public: true } },
@@ -38,6 +46,10 @@ export function installPortalGuard(
         return { path: "/403" }
       }
       if (requirement.permission && !hasPermission(principal, requirement.permission)) {
+        return { path: "/403" }
+      }
+      const routePermission = requiredRoutePermission(to.meta)
+      if (routePermission && !hasPermission(principal, routePermission)) {
         return { path: "/403" }
       }
       return true
