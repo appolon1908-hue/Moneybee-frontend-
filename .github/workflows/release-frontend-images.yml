@@ -1,11 +1,14 @@
 name: release-frontend-images
 
 on:
+  push:
+    branches:
+      - "release/staging"
   workflow_dispatch:
     inputs:
       source_sha:
-        description: Exact protected release/staging commit SHA
-        required: true
+        description: Exact release/staging commit SHA; defaults to the selected branch head
+        required: false
         type: string
 
 permissions:
@@ -17,14 +20,17 @@ concurrency:
 
 jobs:
   publish:
+    if: github.ref == 'refs/heads/release/staging'
     environment: staging-release
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: write
       id-token: write
       attestations: write
+    env:
+      RELEASE_SOURCE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.source_sha || github.sha }}
     strategy:
       fail-fast: false
       matrix:
@@ -32,11 +38,12 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ inputs.source_sha }}
+          ref: ${{ env.RELEASE_SOURCE_SHA }}
           fetch-depth: 0
+
       - name: Verify protected source and digest-pinned base images
         env:
-          SOURCE_SHA: ${{ inputs.source_sha }}
+          SOURCE_SHA: ${{ env.RELEASE_SOURCE_SHA }}
           NODE_BASE_IMAGE: ${{ vars.NODE_BASE_IMAGE }}
           NGINX_BASE_IMAGE: ${{ vars.NGINX_BASE_IMAGE }}
           GOOGLE_LOGIN_ENABLED: ${{ vars.VITE_GOOGLE_LOGIN_ENABLED }}
@@ -53,6 +60,7 @@ jobs:
           if [[ "$GOOGLE_LOGIN_ENABLED" == true ]]; then
             test -n "$GOOGLE_IDP_ALIAS"
           fi
+
       - name: Resolve portal client ID
         id: client
         env:
@@ -62,31 +70,38 @@ jobs:
           LENDER: ${{ vars.LENDER_OIDC_CLIENT_ID }}
           ADMIN: ${{ vars.ADMIN_OIDC_CLIENT_ID }}
         run: |
+          set -euo pipefail
           case "$APP" in
             marketing) value="$MARKETING" ;;
             borrower) value="$BORROWER" ;;
             lender) value="$LENDER" ;;
             admin) value="$ADMIN" ;;
+            *) echo "Unknown app: $APP" >&2; exit 1 ;;
           esac
           if [[ "$APP" != marketing && -z "$value" ]]; then
             echo "Missing OIDC client ID for $APP" >&2
             exit 1
           fi
           echo "value=$value" >> "$GITHUB_OUTPUT"
+
       - id: build_date
         name: Record build timestamp
         run: echo "value=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
         with:
           images: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}
           tags: type=sha,format=long,prefix=sha-
+
       - id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
@@ -99,7 +114,7 @@ jobs:
             APP=${{ matrix.app }}
             NODE_BASE_IMAGE=${{ vars.NODE_BASE_IMAGE }}
             NGINX_BASE_IMAGE=${{ vars.NGINX_BASE_IMAGE }}
-            SOURCE_SHA=${{ inputs.source_sha }}
+            SOURCE_SHA=${{ env.RELEASE_SOURCE_SHA }}
             BUILD_DATE=${{ steps.build_date.outputs.value }}
             VITE_API_BASE_URL=https://api-staging.moneybeeloan.com/api/v2
             VITE_BORROWER_URL=https://app-staging.moneybeeloan.com
@@ -114,7 +129,9 @@ jobs:
           sbom: true
           cache-from: type=gha,scope=frontend-${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=frontend-${{ matrix.app }}
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+
+      - name: Enforce runtime vulnerability policy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           image-ref: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}@${{ steps.build.outputs.digest }}
           format: table
@@ -122,39 +139,189 @@ jobs:
           ignore-unfixed: true
           vuln-type: os,library
           severity: CRITICAL,HIGH
+
+      - name: Export runtime CycloneDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}@${{ steps.build.outputs.digest }}
+          format: cyclonedx
+          output: evidence/sbom.cdx.json
+          exit-code: "0"
+          ignore-unfixed: true
+          vuln-type: os,library
+
+      - name: Record reviewed configuration checksums
+        id: checksums
+        env:
+          APP: ${{ matrix.app }}
+          CLIENT_ID: ${{ steps.client.outputs.value }}
+          NODE_BASE_IMAGE: ${{ vars.NODE_BASE_IMAGE }}
+          NGINX_BASE_IMAGE: ${{ vars.NGINX_BASE_IMAGE }}
+          GOOGLE_LOGIN_ENABLED: ${{ vars.VITE_GOOGLE_LOGIN_ENABLED }}
+          GOOGLE_IDP_ALIAS: ${{ vars.VITE_GOOGLE_IDP_ALIAS }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          config_files=(
+            Dockerfile
+            nginx.conf
+            nginx-main.conf
+            package.json
+            pnpm-lock.yaml
+            pnpm-workspace.yaml
+            deploy/compose.frontend.yml
+          )
+          : >evidence/configuration-files.sha256
+          for file in "${config_files[@]}"; do
+            test -f "$file"
+            sha256sum "$file" >>evidence/configuration-files.sha256
+          done
+          python - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+
+          names = (
+              "APP",
+              "CLIENT_ID",
+              "NODE_BASE_IMAGE",
+              "NGINX_BASE_IMAGE",
+              "GOOGLE_LOGIN_ENABLED",
+              "GOOGLE_IDP_ALIAS",
+          )
+          lines = []
+          for name in names:
+              digest = hashlib.sha256(os.environ.get(name, "").encode()).hexdigest()
+              lines.append(f"{name} sha256:{digest}")
+          Path("evidence/configuration-values.sha256").write_text(
+              "\n".join(lines) + "\n", encoding="utf-8"
+          )
+          PY
+          cat evidence/configuration-files.sha256 evidence/configuration-values.sha256 \
+            >evidence/configuration.inputs.sha256
+          aggregate="$(sha256sum evidence/configuration.inputs.sha256 | awk '{print $1}')"
+          sbom_digest="$(sha256sum evidence/sbom.cdx.json | awk '{print $1}')"
+          printf '%s\n' "$aggregate" >evidence/configuration.aggregate.sha256
+          printf '%s\n' "$sbom_digest" >evidence/sbom.cdx.json.sha256
+          echo "configuration_checksum=$aggregate" >>"$GITHUB_OUTPUT"
+          echo "sbom_checksum=$sbom_digest" >>"$GITHUB_OUTPUT"
+
+      - name: Generate signed build provenance
+        id: provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Generate signed SBOM attestation
+        id: sbom_attestation
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-name: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          sbom-path: evidence/sbom.cdx.json
+          push-to-registry: true
+          create-storage-record: false
+
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6
+
       - name: Sign immutable image digest with GitHub OIDC
         env:
           IMAGE_DIGEST: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}@${{ steps.build.outputs.digest }}
         run: cosign sign --yes "$IMAGE_DIGEST"
-      - name: Verify keyless signature identity
+
+      - name: Verify keyless image signature
         env:
           IMAGE_DIGEST: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}@${{ steps.build.outputs.digest }}
         run: >-
           cosign verify "$IMAGE_DIGEST"
           --certificate-identity "https://github.com/appolon1908-hue/Moneybee-frontend-/.github/workflows/release-frontend-images.yml@refs/heads/release/staging"
           --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
-          --output-json > /tmp/cosign-verification.json
+          --output-json > evidence/cosign-verification.json
+
+      - name: Preserve and verify signed attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_DIGEST: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}@${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          cp "${{ steps.provenance.outputs.bundle-path }}" evidence/provenance.bundle.json
+          cp "${{ steps.sbom_attestation.outputs.bundle-path }}" evidence/sbom.bundle.json
+          gh attestation verify "oci://$IMAGE_DIGEST" \
+            -R "$GITHUB_REPOSITORY" --format json \
+            >evidence/provenance-verification.json
+          gh attestation verify "oci://$IMAGE_DIGEST" \
+            -R "$GITHUB_REPOSITORY" \
+            --predicate-type "https://cyclonedx.org/bom" \
+            --format json \
+            >evidence/sbom-attestation-verification.json
+
       - name: Record immutable release evidence
         env:
+          APP: ${{ matrix.app }}
           IMAGE: ghcr.io/appolon1908-hue/moneybee-${{ matrix.app }}
           DIGEST: ${{ steps.build.outputs.digest }}
-          SOURCE_SHA: ${{ inputs.source_sha }}
+          SOURCE_SHA: ${{ env.RELEASE_SOURCE_SHA }}
+          CONFIGURATION_CHECKSUM: ${{ steps.checksums.outputs.configuration_checksum }}
+          SBOM_CHECKSUM: ${{ steps.checksums.outputs.sbom_checksum }}
+          PROVENANCE_ID: ${{ steps.provenance.outputs.attestation-id }}
+          PROVENANCE_URL: ${{ steps.provenance.outputs.attestation-url }}
+          SBOM_ATTESTATION_ID: ${{ steps.sbom_attestation.outputs.attestation-id }}
+          SBOM_ATTESTATION_URL: ${{ steps.sbom_attestation.outputs.attestation-url }}
         run: |
-          mkdir -p evidence
-          cp /tmp/cosign-verification.json evidence/cosign-verification.json
+          set -euo pipefail
           python - <<'PY'
-          import json, os, pathlib
-          pathlib.Path('evidence/release.json').write_text(json.dumps({
-              'image': os.environ['IMAGE'],
-              'digest': os.environ['DIGEST'],
-              'source_sha': os.environ['SOURCE_SHA'],
-              'workflow_run': os.environ['GITHUB_RUN_ID'],
-          }, indent=2) + '\n')
+          import json
+          import os
+          from datetime import UTC, datetime
+          from pathlib import Path
+
+          evidence = {
+              "schema_version": 2,
+              "status": "PUBLISHED_SIGNED_ATTESTED_VERIFIED",
+              "application": os.environ["APP"],
+              "image": os.environ["IMAGE"],
+              "digest": os.environ["DIGEST"],
+              "immutable_identity": os.environ["IMAGE"] + "@" + os.environ["DIGEST"],
+              "source_sha": os.environ["SOURCE_SHA"],
+              "workflow_run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "workflow_run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              "created_at": datetime.now(UTC).isoformat(),
+              "configuration_checksum": os.environ["CONFIGURATION_CHECKSUM"],
+              "sbom_sha256": os.environ["SBOM_CHECKSUM"],
+              "provenance": {
+                  "attestation_id": os.environ["PROVENANCE_ID"],
+                  "attestation_url": os.environ["PROVENANCE_URL"],
+                  "verified": True,
+              },
+              "sbom_attestation": {
+                  "attestation_id": os.environ["SBOM_ATTESTATION_ID"],
+                  "attestation_url": os.environ["SBOM_ATTESTATION_URL"],
+                  "verified": True,
+              },
+              "signature": {
+                  "mechanism": "sigstore-cosign-github-oidc",
+                  "verified": True,
+              },
+              "production_authorized": False,
+              "external_effects_enabled": False,
+          }
+          Path("evidence/release.json").write_text(
+              json.dumps(evidence, indent=2) + "\n", encoding="utf-8"
+          )
           PY
+          (
+            cd evidence
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' |
+              sort |
+              xargs sha256sum >SHA256SUMS
+          )
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: frontend-${{ matrix.app }}-release-evidence
+          name: frontend-${{ matrix.app }}-release-${{ env.RELEASE_SOURCE_SHA }}
           path: evidence
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90
