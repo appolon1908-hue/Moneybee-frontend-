@@ -11,8 +11,9 @@ import {
 } from "./index"
 
 describe("money", () => {
-  it("formats USD values", () => {
-    expect(money(75000)).toContain("75,000")
+  it("formats USD values without discarding cents", () => {
+    expect(money(75000)).toBe("$75,000.00")
+    expect(money("25000.50")).toBe("$25,000.50")
   })
 })
 
