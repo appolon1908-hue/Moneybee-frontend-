@@ -122,6 +122,9 @@ jobs:
           cache-from: type=gha,scope=frontend-${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=frontend-${{ matrix.app }}
 
+      - name: Prepare release evidence directory
+        run: install -d -m 700 evidence
+
       - name: Enforce runtime vulnerability policy
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
@@ -149,7 +152,6 @@ jobs:
           CLIENT_ID: ${{ steps.client.outputs.value }}
         run: |
           set -euo pipefail
-          mkdir -p evidence
           config_files=(
             Dockerfile
             nginx.conf
