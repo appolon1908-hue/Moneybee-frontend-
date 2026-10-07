@@ -7,6 +7,13 @@ on:
       - "feature/**"
       - "ops/**"
       - "release/**"
+      - development
+      - testing
+      - staging
+      - production
+      - "section/**"
+      - "subsection/**"
+      - "workstation/**"
 
 permissions:
   contents: read
