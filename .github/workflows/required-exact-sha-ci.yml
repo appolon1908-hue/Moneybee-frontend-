@@ -69,6 +69,25 @@ jobs:
           fi
           git fsck --no-progress
 
+      - name: Set up Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+
+      - name: Run MoneyBee frontend project gates
+        shell: bash
+        env:
+          CI: "true"
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@10.15.0 --activate
+          pnpm install --frozen-lockfile
+          pnpm typecheck
+          pnpm test
+          pnpm build
+          python3 scripts/validate_frontend_scaffold.py
+
       - name: Record exact-SHA evidence in runner-controlled storage
         shell: bash
         run: |
