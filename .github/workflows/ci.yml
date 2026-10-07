@@ -7,6 +7,12 @@ on:
       - "feature/**"
       - "ops/**"
       - "release/**"
+      - "development"
+      - "testing"
+      - "staging"
+      - "production"
+      - "section/**"
+      - "subsection/**"
 
 permissions:
   contents: read
@@ -24,7 +30,7 @@ jobs:
       - name: Checkout MoneyBee backend contract source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          repository: appolon1908-hue/Moneybee-Backend
+          repository: appolon1908/Moneybee-Backend
           ref: ${{ vars.MONEYBEE_BACKEND_CONTRACT_REF || 'main' }}
           path: moneybee-backend
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
