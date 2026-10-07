@@ -90,6 +90,49 @@ jobs:
           pnpm build
           python3 scripts/validate_frontend_scaffold.py
 
+
+      - name: Set up Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Enable pinned pnpm
+        shell: bash
+        run: corepack enable && corepack prepare pnpm@10.15.0 --activate
+
+      - name: Export canonical MoneyBee backend contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$RUNNER_TEMP/moneybee-backend"
+          rm -rf "$backend"
+          git clone --depth 1 --branch development https://github.com/appolon1908/Moneybee-Backend.git "$backend"
+          cd "$backend"
+          python -m pip install --disable-pip-version-check ".[dev]"
+          APP_ENV=test \
+          LOCAL_AUTH_BYPASS=true \
+          DATABASE_URL=sqlite+aiosqlite:///./contract-export.db \
+          python scripts/export_openapi.py
+          test -f openapi.json
+
+      - name: Run MoneyBee frontend project checks
+        shell: bash
+        env:
+          MONEYBEE_OPENAPI_FILE: ${{ runner.temp }}/moneybee-backend/openapi.json
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm contracts:check
+          pnpm typecheck
+          pnpm test
+          pnpm build
+          python scripts/validate_frontend_scaffold.py
+
       - name: Record exact-SHA evidence in runner-controlled storage
         shell: bash
         run: |
